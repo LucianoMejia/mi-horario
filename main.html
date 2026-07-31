@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Horario — Planificador de horarios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#3B4B8C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    --paper:#F7F5F0;
+    --panel:#FFFFFF;
+    --ink:#1E2233;
+    --ink-soft:#565B70;
+    --rule:#DAD6CC;
+    --shadow: 0 1px 2px rgba(30,34,51,.04), 0 8px 24px rgba(30,34,51,.05);
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    position:relative;
+    transition:background .25s ease, color .25s ease;
+  }
+  body.dark{
+    --paper:#15171F;
+    --panel:#1E212C;
+    --ink:#ECECF2;
+    --ink-soft:#9A9DB4;
+    --rule:#33364A;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  .bg-grid{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 34px 34px;
+    opacity:.35;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:48px 24px 100px; position:relative; z-index:1;}
+
+  header{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:34px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 8px;
+  }
+  h1{
+    font-family:'Fraunces',serif; font-weight:700; font-size:42px; line-height:1.04;
+    margin:0 0 12px; letter-spacing:-0.01em;
+  }
+  .sub{color:var(--ink-soft); font-size:15px; max-width:520px; margin:0; line-height:1.55;}
+
+  .customize-btn{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--rule); color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:500;
+    padding:10px 16px; border-radius:10px; cursor:pointer; white-space:nowrap;
+    box-shadow:var(--shadow); flex-shrink:0;
+  }
+  .customize-btn:hover{border-color:var(--accent); color:var(--accent);}
+
+  .tabs-bar{
+    display:flex; align-items:center; gap:6px; margin-bottom:22px;
+    overflow-x:auto; padding-bottom:4px;
+  }
+  .tab{
+    display:flex; align-items:center; gap:8px;
+    font-family:'Inter',sans-serif; font-size:13.5px; font-weight:500;
+    padding:9px 8px 9px 16px; border-radius:9px 9px 0 0;
+    background:transparent; color:var(--ink-soft); cursor:pointer;
+    border-bottom:2px solid transparent; white-space:nowrap; user-select:none;
+  }
+  .tab:hover{color:var(--ink);}
+  .tab.active{color:var(--ink); border-bottom:2px solid var(--accent); background:var(--panel);}
+  .tab .tab-x{
+    border:none; background:none; color:var(--ink-soft); font-size:14px; cursor:pointer;
+    padding:2px 6px; border-radius:6px; line-height:1;
+  }
+  .tab .tab-x:hover{background:var(--rule); color:var(--ink);}
+  .add-tab{
+    display:flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:9px; border:1px dashed var(--rule);
+    background:transparent; color:var(--ink-soft); cursor:pointer; font-size:16px; flex-shrink:0;
+  }
+  .add-tab:hover{border-color:var(--accent); color:var(--accent);}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--rule); border-radius:14px;
+    padding:24px 24px 26px; margin-bottom:28px; box-shadow:var(--shadow);
+  }
+  .panel h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 4px;}
+  .panel .hint{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
+  .schedule-title-input{
+    display:block; width:100%; font-family:'Fraunces',serif; font-weight:600; font-size:19px;
+    color:var(--ink); border:none; border-bottom:1px solid transparent; background:transparent;
+    padding:2px 0 4px; margin:0 0 4px;
+  }
+  .schedule-title-input:hover{border-bottom-color:var(--rule);}
+  .schedule-title-input:focus{outline:none; border-bottom-color:var(--accent);}
+  #exportCapture{background:var(--panel); padding:18px 12px 4px;}
+  .export-title{
+    font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink);
+    margin:0 0 16px; text-align:center;
+  }
+
+  #rows{display:flex; flex-direction:column; gap:10px;}
+  .row-card{
+    border:1px solid var(--rule); border-radius:10px; padding:10px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .row{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  }
+  .row-extra{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .row input, .row select, .row-extra input{
+    font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px;
+    border:1px solid var(--rule); border-radius:8px; background:var(--paper);
+    color:var(--ink);
+    field-sizing: content;
+  }
+  .row input[data-field="course"]{ flex:2 1 150px; min-width:120px; max-width:100%; }
+  .row input[data-field="section"]{ flex:1 1 80px; min-width:70px; max-width:160px; }
+  .row select[data-field="day"]{ flex:0 1 78px; min-width:70px; }
+  .row input[data-field="start"], .row input[data-field="end"]{ flex:0 1 96px; min-width:88px; }
+  .row-extra input[data-field="room"]{ flex:1 1 100px; min-width:90px; max-width:220px; }
+  .row-extra input[data-field="group"]{ flex:1 1 80px; min-width:70px; max-width:160px; }
+  .row-extra input[data-field="professor"]{ flex:2 1 140px; min-width:120px; max-width:100%; }
+  .row-extra input{ font-size:13px; padding:8px 10px; }
+  .row input:focus, .row select:focus, .row-extra input:focus{outline:none; border-color:var(--accent); background:var(--panel);}
+  .remove-btn{
+    background:none; border:1px solid var(--rule); border-radius:8px; width:34px; height:34px;
+    color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; flex:0 0 auto; margin-left:auto;
+  }
+  .remove-btn:hover{border-color:#C6512E; color:#C6512E;}
+
+  .actions{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;}
+  button.primary, button.ghost{
+    font-family:'Inter',sans-serif; font-weight:500; font-size:14px; padding:11px 18px;
+    border-radius:9px; cursor:pointer; border:none;
+  }
+  button.primary{background:var(--accent); color:#fff;}
+  button.primary:hover{filter:brightness(1.1);}
+  button.ghost{background:transparent; border:1px solid var(--rule); color:var(--ink);}
+  button.ghost:hover{border-color:var(--ink);}
+
+  #summary{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-soft); margin-bottom:14px;}
+  #nav{display:flex; align-items:center; gap:8px; margin-bottom:18px; flex-wrap:wrap;}
+  .option-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; min-width:30px; height:30px;
+    padding:0 8px; border-radius:8px; border:1px solid var(--rule); background:var(--paper);
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .option-pill:hover{border-color:var(--accent); color:var(--accent);}
+  .option-pill.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  #legend{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; justify-content:center;}
+  .legend-item{display:flex; align-items:center; gap:7px; font-size:13px;}
+  .legend-swatch{width:11px; height:11px; border-radius:3px; flex-shrink:0;}
+
+  .grid-wrap{
+    background:var(--panel); border:1px solid var(--rule); border-radius:14px;
+    padding:20px 20px 24px; overflow-x:auto;
+  }
+  .grid-inner{position:relative; min-width:700px;}
+  .day-head{
+    text-align:center; font-family:'IBM Plex Mono',monospace; font-size:12px;
+    color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; padding-bottom:8px;
+  }
+  .day-col{border-left:1px solid var(--rule);}
+  .hour-label{position:absolute; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-soft);}
+  .block{
+    position:absolute; border-radius:6px; padding:6px 8px; overflow:visible;
+    box-sizing:border-box; border-left:3px solid transparent;
+    box-shadow: 0 1px 4px rgba(0,0,0,.10);
+  }
+  .block .b-course{font-weight:600; font-size:12px; line-height:1.25;}
+  .block .b-meta{font-family:'IBM Plex Mono',monospace; font-size:10.5px; margin-top:2px; opacity:.85;}
+  .empty-note{font-size:14px; color:var(--ink-soft); padding:8px 2px;}
+
+  /* Customize drawer */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,22,30,.35); z-index:20;
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .overlay.open{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; top:0; right:0; height:100%; width:320px; max-width:88vw;
+    background:var(--panel); border-left:1px solid var(--rule); z-index:21;
+    padding:26px 22px; transform:translateX(100%); transition:transform .25s ease;
+    overflow-y:auto; box-shadow:-8px 0 24px rgba(0,0,0,.08);
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer h3{font-family:'Fraunces',serif; font-size:20px; margin:0 0 4px;}
+  .drawer .hint{font-size:13px; color:var(--ink-soft); margin:0 0 22px;}
+  .drawer-close{
+    position:absolute; top:20px; right:20px; background:none; border:none;
+    font-size:20px; color:var(--ink-soft); cursor:pointer;
+  }
+  .field-group{margin-bottom:24px;}
+  .field-label{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-soft); margin-bottom:10px; display:block;
+  }
+  .swatches{display:flex; gap:10px; flex-wrap:wrap;}
+  .swatch{
+    width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+    position:relative;
+  }
+  .swatch.selected{border-color:var(--ink);}
+  .hour-row{display:flex; align-items:center; gap:10px;}
+  .hour-row select{
+    font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border:1px solid var(--rule);
+    border-radius:8px; background:var(--paper); color:var(--ink);
+  }
+  .toggle-row{display:flex; align-items:center; justify-content:space-between;}
+  .switch{position:relative; width:42px; height:24px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{
+    position:absolute; inset:0; background:var(--rule); border-radius:20px; cursor:pointer; transition:.2s;
+  }
+  .slider:before{
+    content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider{background:var(--accent);}
+  .switch input:checked + .slider:before{transform:translateX(18px);}
+
+  @media (max-width:640px){
+    .row input[data-field="course"]{ flex-basis:100%; }
+    .row-extra input[data-field="professor"]{ flex-basis:100%; }
+    header{flex-direction:column;}
+  }
+  #errBanner{
+    display:none; position:fixed; top:0; left:0; right:0; z-index:999;
+    background:#C6512E; color:#fff; font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px; padding:10px 16px; text-align:center;
+  }
+  #storageNotice{
+    display:none; font-size:12.5px; font-family:'IBM Plex Mono',monospace;
+    color:#B37B1E; background:#FBF0DA; border:1px solid #E8CE9A;
+    padding:8px 12px; border-radius:8px; margin-bottom:16px;
+  }
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,22,30,.45); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-box{
+    background:var(--panel); border:1px solid var(--rule); border-radius:14px;
+    padding:22px; width:100%; max-width:360px; box-shadow:var(--shadow);
+  }
+  .modal-box h4{font-family:'Fraunces',serif; font-size:17px; margin:0 0 8px;}
+  .modal-box p{font-size:13.5px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;}
+  .modal-box input{
+    width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px;
+    border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink);
+    margin-bottom:16px;
+  }
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px;}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(0);
+    background:var(--ink); color:var(--paper); font-family:'Inter',sans-serif; font-size:13.5px;
+    padding:11px 18px; border-radius:10px; z-index:60; box-shadow:var(--shadow);
+    max-width:90vw; text-align:center;
+  }
+  .site-footer{
+    margin-top:48px; padding-top:24px; border-top:1px solid var(--rule);
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .site-footer .credit{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft);
+  }
+  .site-footer .socials{display:flex; gap:16px;}
+  .site-footer .socials a{
+    font-family:'Inter',sans-serif; font-size:13px; color:var(--ink-soft);
+    text-decoration:none; border-bottom:1px solid transparent;
+    display:flex; align-items:center; gap:6px;
+  }
+  .site-footer .socials a svg{width:16px; height:16px; flex-shrink:0;}
+  .site-footer .socials a:hover{color:var(--accent); border-color:var(--accent);}
+</style>
+</head>
+<body>
+<div id="errBanner"></div>
+<div class="bg-grid"></div>
+<div class="wrap">
+  <div id="storageNotice">⚠ Este navegador no permite guardar automáticamente (modo privado, archivo abierto localmente, u otra restricción). El planificador sigue funcionando, pero tus horarios se perderán al recargar la página.</div>
+  <header>
+    <div>
+      <p class="eyebrow">¡Vamos con todo este semestre! 🚀</p>
+      <h1>Mi Horario</h1>
+      <p class="sub">Arma tu horario ideal antes de matricularte: carga tus materias, compara secciones que se cruzan, personaliza los colores de cada clase y descarga tantas versiones como necesites.</p>
+    </div>
+    <button class="customize-btn" id="openCustomize">⚙ Personalizar</button>
+  </header>
+
+  <div class="tabs-bar" id="tabsBar"></div>
+
+  <div class="panel">
+    <h2>Materias y secciones</h2>
+    <p class="hint">Si una sección se reúne varios días, agrega una fila por cada día con el mismo nombre de materia y de sección. Si a una materia le agregas dos secciones distintas (ej. "A" y "B"), el planificador te mostrará ambas opciones abajo, sin cruces con el resto.</p>
+    <div id="rows"></div>
+    <div class="actions">
+      <button class="ghost" id="addRow">+ Agregar sección</button>
+      <button class="ghost" id="clearBtn">Limpiar materias</button>
+    </div>
+  </div>
+
+  <div id="resultsPanel" class="panel">
+    <input type="text" id="scheduleTitleInput" class="schedule-title-input" placeholder="Título de tu horario (ej. Semestre 2026-1)">
+    <p class="hint" id="resultsHint">Se actualiza automáticamente mientras editas tus materias.</p>
+    <div id="summary"></div>
+    <div id="nav"></div>
+
+    <div id="exportCapture">
+      <h2 id="exportTitle" class="export-title"></h2>
+      <div id="legend"></div>
+      <div class="grid-wrap">
+        <div id="scheduleView" class="grid-inner"></div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:18px; margin-bottom:0;">
+      <button class="ghost" id="downloadBtn">↓ Descargar horario (imagen)</button>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <span class="credit">Hecho por <strong style="color:var(--ink); font-weight:600;">José Luciano Mejia Arias</strong></span>
+    <div class="socials">
+      <a href="https://instagram.com/lucianomejia17" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
+        Instagram
+      </a>
+      <a href="https://github.com/LucianoMejia" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.5 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.22-3.37-1.22-.46-1.2-1.11-1.53-1.11-1.53-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.56 2.36 1.11 2.93.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .28.18.6.69.5A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/jos%C3%A9-luciano-mej%C3%ADa-arias-a35806383/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.94 8.5H3.56V20.5H6.94V8.5Z"/><path d="M5.25 3.5A1.94 1.94 0 1 0 5.25 7.38 1.94 1.94 0 0 0 5.25 3.5Z"/><path d="M20.5 20.5H17.13v-6.3c0-1.5-.03-3.44-2.1-3.44-2.1 0-2.42 1.64-2.42 3.33v6.41H9.23V8.5h3.24v1.64h.05c.45-.85 1.55-1.75 3.2-1.75 3.42 0 4.06 2.25 4.06 5.18v6.93Z"/></svg>
+        LinkedIn
+      </a>
+    </div>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <button class="drawer-close" id="closeDrawer">×</button>
+  <h3>Personalizar</h3>
+  <p class="hint">Ajusta la apariencia de la app y de tu horario. Se guarda automáticamente.</p>
+
+  <p class="field-label" style="font-size:12px; margin-bottom:14px; opacity:.7;">— Apariencia de la app —</p>
+
+  <div class="field-group">
+    <span class="field-label">Color de acento</span>
+    <div class="swatches" id="swatches"></div>
+  </div>
+
+  <div class="field-group">
+    <div class="toggle-row">
+      <span class="field-label" style="margin-bottom:0;">Modo oscuro</span>
+      <label class="switch">
+        <input type="checkbox" id="darkToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Este horario —</p>
+
+  <div class="field-group">
+    <span class="field-label">Rango de horas visibles</span>
+    <div class="hour-row">
+      <select id="hourStart"></select>
+      <span style="color:var(--ink-soft); font-size:13px;">a</span>
+      <select id="hourEnd"></select>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <div class="toggle-row">
+      <span class="field-label" style="margin-bottom:0;">Formato 12 horas (AM/PM)</span>
+      <label class="switch">
+        <input type="checkbox" id="timeFormatToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <div class="toggle-row">
+      <span class="field-label" style="margin-bottom:0;">Incluir sábado</span>
+      <label class="switch">
+        <input type="checkbox" id="saturdayToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <span class="field-label">Colores por materia</span>
+    <p class="hint" style="margin:0;">Haz clic en el punto de color junto a cada materia (debajo del horario) para elegir su propio color.</p>
+  </div>
+</div>
+
+
+<script>
+const DAYS = ["Lun","Mar","Mié","Jue","Vie","Sáb"];
+const COLORS = [
+  {bg:"#E7EAF5", border:"#3B4B8C", text:"#2B3266", dbg:"#262B45", dtext:"#C7CDEE"},
+  {bg:"#E3F1EA", border:"#2E7D5B", text:"#1E5A40", dbg:"#1C3229", dtext:"#B7E4CC"},
+  {bg:"#F5E4DC", border:"#C6512E", text:"#8C3A20", dbg:"#3A2620", dtext:"#F2C3AC"},
+  {bg:"#F5E9F0", border:"#A34D74", text:"#7A3A56", dbg:"#33222C", dtext:"#EEBBD1"},
+  {bg:"#FBF0DA", border:"#B37B1E", text:"#7A5514", dbg:"#362D18", dtext:"#F0D298"},
+  {bg:"#EDEAF7", border:"#6A4FA0", text:"#4C3877", dbg:"#2A2438", dtext:"#D6C7F0"},
+  {bg:"#E4EFF2", border:"#2E7C8C", text:"#1F5866", dbg:"#1D2F33", dtext:"#AEDDE6"}
+];
+const ACCENTS = ["#3B4B8C","#2E7D5B","#C6512E","#A34D74","#B37B1E","#6A4FA0","#2E7C8C"];
+const STORAGE_KEY = "horario_planner_state_v1";
+
+function showFatalError(msg){
+  const b = document.getElementById('errBanner');
+  if(!b) return;
+  b.style.display = 'block';
+  b.textContent = '⚠ ' + msg;
+}
+window.addEventListener('error', (e)=>{
+  showFatalError('Ocurrió un error: ' + (e.message || 'desconocido'));
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  showFatalError('Ocurrió un error: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+
+function showToast(msg){
+  const old = document.querySelector('.toast');
+  if(old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=> t.remove(), 3200);
+}
+
+function showConfirmModal({title, message, confirmText, danger, onConfirm}){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h4>${title}</h4>
+      <p>${message}</p>
+      <div class="modal-actions">
+        <button class="ghost" data-act="cancel">Cancelar</button>
+        <button class="primary" data-act="ok" style="${danger?'background:#C6512E;':''}">${confirmText}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  function close(){ overlay.remove(); }
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-act="ok"]').addEventListener('click', ()=>{ close(); onConfirm(); });
+}
+
+function showPromptModal({title, message, initialValue, confirmText, onConfirm}){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h4>${title}</h4>
+      <p>${message}</p>
+      <input type="text" id="modalInput" value="${(initialValue||'').replace(/"/g,'&quot;')}">
+      <div class="modal-actions">
+        <button class="ghost" data-act="cancel">Cancelar</button>
+        <button class="primary" data-act="ok">${confirmText}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#modalInput');
+  setTimeout(()=>{ input.focus(); input.select(); }, 30);
+  function close(){ overlay.remove(); }
+  function confirmIt(){
+    const val = input.value.trim();
+    close();
+    if(val) onConfirm(val);
+  }
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
+  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') confirmIt(); if(e.key==='Escape') close(); });
+  overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-act="ok"]').addEventListener('click', confirmIt);
+}
+
+let storageWorks = true;
+const safeStorage = {
+  get(key){
+    try{ return localStorage.getItem(key); }
+    catch(e){ storageWorks = false; return null; }
+  },
+  set(key, val){
+    try{ localStorage.setItem(key, val); return true; }
+    catch(e){ storageWorks = false; return false; }
+  }
+};
+
+let state = loadState();
+let schedules = [];
+let currentIdx = 0;
+
+function defaultState(){
+  return {
+    projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{} }],
+    activeId: null,
+    settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24' }
+  };
+}
+function emptyRow(){ return { course:"", section:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"" }; }
+
+function loadState(){
+  try{
+    const raw = safeStorage.get(STORAGE_KEY);
+    if(!raw) { const d = defaultState(); d.activeId = d.projects[0].id; return d; }
+    const parsed = JSON.parse(raw);
+    if(!parsed.projects || parsed.projects.length===0){ const d = defaultState(); d.activeId = d.projects[0].id; return d; }
+    if(!parsed.activeId) parsed.activeId = parsed.projects[0].id;
+    const defaults = defaultState();
+    parsed.settings = Object.assign({}, defaults.settings, parsed.settings || {});
+    parsed.projects.forEach(p=>{ if(!p.colorOverrides) p.colorOverrides = {}; });
+    return parsed;
+  }catch(e){ const d = defaultState(); d.activeId = d.projects[0].id; return d; }
+}
+function saveState(){
+  const ok = safeStorage.set(STORAGE_KEY, JSON.stringify(state));
+  const notice = document.getElementById('storageNotice');
+  if(notice) notice.style.display = ok ? 'none' : 'block';
+}
+
+function getActiveProject(){ return state.projects.find(p=>p.id===state.activeId); }
+
+/* ---------- Tabs ---------- */
+function renderTabs(){
+  const bar = document.getElementById('tabsBar');
+  bar.innerHTML = '';
+  state.projects.forEach(p=>{
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (p.id===state.activeId ? ' active' : '');
+    tab.innerHTML = `<span class="tab-name">${p.name}</span>`;
+    tab.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('tab-x')) return;
+      state.activeId = p.id;
+      saveState();
+      renderTabs();
+      renderRows();
+      generate();
+    });
+    tab.addEventListener('dblclick', ()=>{
+      showPromptModal({
+        title: 'Renombrar horario',
+        message: 'Escribe el nuevo nombre para esta pestaña.',
+        initialValue: p.name,
+        confirmText: 'Guardar',
+        onConfirm: (newName)=>{ p.name = newName; saveState(); renderTabs(); generate(); }
+      });
+    });
+    const xBtn = document.createElement('button');
+    xBtn.className = 'tab-x';
+    xBtn.textContent = '×';
+    xBtn.title = 'Eliminar este horario';
+    xBtn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      if(state.projects.length===1){ showToast('Debe existir al menos un horario.'); return; }
+      showConfirmModal({
+        title: 'Eliminar horario',
+        message: `¿Eliminar "${p.name}"? Esta acción no se puede deshacer.`,
+        confirmText: 'Eliminar',
+        danger: true,
+        onConfirm: ()=>{
+          state.projects = state.projects.filter(pr=>pr.id!==p.id);
+          if(state.activeId===p.id) state.activeId = state.projects[0].id;
+          saveState(); renderTabs(); renderRows(); generate();
+        }
+      });
+    });
+    tab.appendChild(xBtn);
+    bar.appendChild(tab);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-tab';
+  addBtn.textContent = '+';
+  addBtn.title = 'Crear nuevo horario';
+  addBtn.addEventListener('click', ()=>{
+    const n = state.projects.length + 1;
+    const proj = { id:"p"+Date.now(), name:`Horario ${n}`, rows:[emptyRow(), emptyRow()] };
+    state.projects.push(proj);
+    state.activeId = proj.id;
+    saveState(); renderTabs(); renderRows(); generate();
+  });
+  bar.appendChild(addBtn);
+}
+
+/* ---------- Rows / builder ---------- */
+function rowTemplate(data){
+  const card = document.createElement('div');
+  card.className = 'row-card';
+  const activeDays = getActiveDays();
+  const dayOptions = activeDays.includes(data.day) ? activeDays : [...activeDays, data.day];
+  card.innerHTML = `
+    <div class="row">
+      <input type="text" placeholder="Materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
+      <input type="text" placeholder="Sección (ej. A)" data-field="section" value="${data.section||''}">
+      <select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select>
+      <input type="time" data-field="start" value="${data.start||'08:00'}">
+      <input type="time" data-field="end" value="${data.end||'10:00'}">
+      <button class="remove-btn" title="Eliminar fila">×</button>
+    </div>
+    <div class="row-extra">
+      <input type="text" placeholder="Aula (ej. B-204)" data-field="room" value="${data.room||''}">
+      <input type="text" placeholder="Grupo (ej. 2)" data-field="group" value="${data.group||''}">
+      <input type="text" placeholder="Profesor(a)" data-field="professor" value="${data.professor||''}">
+    </div>
+  `;
+  card.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('input', syncRowsFromDOM);
+    el.addEventListener('change', syncRowsFromDOM);
+  });
+  card.querySelector('.remove-btn').addEventListener('click', ()=>{
+    card.remove();
+    syncRowsFromDOM();
+  });
+  return card;
+}
+
+function renderRows(){
+  const proj = getActiveProject();
+  const container = document.getElementById('rows');
+  container.innerHTML = '';
+  proj.rows.forEach(r=> container.appendChild(rowTemplate(r)));
+}
+
+function syncRowsFromDOM(){
+  const proj = getActiveProject();
+  const rows = [];
+  document.querySelectorAll('#rows .row-card').forEach(card=>{
+    rows.push({
+      course: card.querySelector('[data-field="course"]').value,
+      section: card.querySelector('[data-field="section"]').value,
+      day: card.querySelector('[data-field="day"]').value,
+      start: card.querySelector('[data-field="start"]').value,
+      end: card.querySelector('[data-field="end"]').value,
+      room: card.querySelector('[data-field="room"]').value,
+      group: card.querySelector('[data-field="group"]').value,
+      professor: card.querySelector('[data-field="professor"]').value
+    });
+  });
+  proj.rows = rows;
+  saveState();
+  generate();
+}
+
+function addRow(){
+  document.getElementById('rows').appendChild(rowTemplate(emptyRow()));
+  syncRowsFromDOM();
+}
+
+/* ---------- Schedule generation ---------- */
+function toMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function overlaps(a,b){ return a.day===b.day && toMin(a.start)<toMin(b.end) && toMin(b.start)<toMin(a.end); }
+function cartesian(arr){
+  return arr.reduce((acc,cur)=>{ const res=[]; acc.forEach(a=>cur.forEach(c=>res.push([...a,c]))); return res; },[[]]);
+}
+function getActiveDays(){ return state.settings.includeSaturday ? DAYS : DAYS.slice(0,5); }
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function mixHex(hex, targetHex, weight){
+  const a = hexToRgb(hex), b = hexToRgb(targetHex);
+  const r = Math.round(a.r*weight + b.r*(1-weight));
+  const g = Math.round(a.g*weight + b.g*(1-weight));
+  const bl = Math.round(a.b*weight + b.b*(1-weight));
+  return '#' + [r,g,bl].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function buildColorFromHex(hex){
+  return {
+    bg: mixHex(hex, '#ffffff', 0.16),
+    border: hex,
+    text: mixHex(hex, '#000000', 0.72),
+    dbg: mixHex(hex, '#000000', 0.32),
+    dtext: mixHex(hex, '#ffffff', 0.72)
+  };
+}
+function formatTimeStr(t){
+  if(state.settings.timeFormat !== '12') return t;
+  const [h,m] = t.split(':').map(Number);
+  const period = h < 12 ? 'AM' : 'PM';
+  let hh = h % 12; if(hh===0) hh = 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${period}`;
+}
+function formatHourLabel(h){
+  if(state.settings.timeFormat !== '12') return `${h}:00`;
+  const period = h < 12 ? 'AM' : 'PM';
+  let hh = h % 12; if(hh===0) hh = 12;
+  return `${hh} ${period}`;
+}
+
+function generate(){
+  const proj = getActiveProject();
+  const activeDays = getActiveDays();
+  const titleInput = document.getElementById('scheduleTitleInput');
+  const exportTitle = document.getElementById('exportTitle');
+  if(titleInput && document.activeElement !== titleInput) titleInput.value = proj.name;
+  if(exportTitle) exportTitle.textContent = proj.name;
+
+  const skippedDay = proj.rows.some(r=> r.course.trim() && !activeDays.includes(r.day));
+
+  const data = proj.rows.filter(r=> r.course.trim() && r.start && r.end && activeDays.includes(r.day))
+    .map(r=>({...r, course:r.course.trim(), section:(r.section.trim()||"única")}));
+  const summary = document.getElementById('summary');
+  const nav = document.getElementById('nav');
+  const legend = document.getElementById('legend');
+  const view = document.getElementById('scheduleView');
+  summary.innerHTML=''; nav.innerHTML=''; legend.innerHTML=''; view.innerHTML='';
+
+  if(data.length===0){
+    summary.innerHTML = skippedDay
+      ? '<p class="empty-note">Tienes materias los sábados pero desactivaste ese día en Personalizar. Actívalo de nuevo o cambia el día de esas materias.</p>'
+      : '<p class="empty-note">Agrega al menos una materia con su horario arriba, y aquí verás tu horario armado automáticamente.</p>';
+    schedules = [];
+    return;
+  }
+
+  const byCourse = {};
+  data.forEach(r=>{
+    byCourse[r.course] = byCourse[r.course] || {};
+    byCourse[r.course][r.section] = byCourse[r.course][r.section] || [];
+    byCourse[r.course][r.section].push(r);
+  });
+  const courseNames = Object.keys(byCourse);
+  const optionsPerCourse = courseNames.map(name=>Object.values(byCourse[name]));
+  const combos = cartesian(optionsPerCourse);
+
+  const valid = [];
+  combos.forEach(combo=>{
+    const flat = combo.flat();
+    let ok = true;
+    for(let i=0;i<flat.length && ok;i++){
+      for(let j=i+1;j<flat.length;j++){
+        if(flat[i].course !== flat[j].course && overlaps(flat[i], flat[j])){ ok=false; break; }
+      }
+    }
+    if(ok) valid.push(flat);
+  });
+
+  schedules = valid;
+  if(currentIdx >= schedules.length) currentIdx = 0;
+
+  proj.colorOverrides = proj.colorOverrides || {};
+  const colorMap = {};
+  courseNames.forEach((c,i)=>{
+    colorMap[c] = proj.colorOverrides[c] ? buildColorFromHex(proj.colorOverrides[c]) : COLORS[i % COLORS.length];
+  });
+  courseNames.forEach(c=>{
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.style.cursor = 'pointer';
+    item.title = 'Cambiar color de ' + c;
+
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = colorMap[c].border;
+
+    const label = document.createElement('span');
+    label.textContent = c;
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = colorMap[c].border;
+    picker.style.cssText = 'position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;';
+    picker.addEventListener('input', (e)=>{
+      proj.colorOverrides[c] = e.target.value;
+      saveState();
+      generate();
+    });
+
+    item.appendChild(swatch);
+    item.appendChild(label);
+    item.appendChild(picker);
+    item.addEventListener('click', ()=> picker.click());
+    legend.appendChild(item);
+  });
+
+  const hasAlternatives = optionsPerCourse.some(opts => opts.length > 1);
+
+  if(schedules.length===0){
+    summary.innerHTML = `<p class="empty-note">Alguna de tus materias se cruza en horario con otra y no es posible armar un horario sin choques. Revisa los días y horas, o agrega una sección alternativa para la materia que se cruza.</p>`;
+    return;
+  }
+
+  if(schedules.length===1){
+    summary.textContent = hasAlternatives
+      ? 'Solo hay una forma de combinar tus materias sin que se crucen.'
+      : 'Este es el horario con las materias que agregaste.';
+  } else {
+    summary.textContent = `Agregaste secciones alternativas, así que hay ${schedules.length} formas distintas de armar tu horario sin cruces. Elige una para verla:`;
+    schedules.forEach((_, i)=>{
+      const pill = document.createElement('button');
+      pill.className = 'option-pill' + (i===currentIdx ? ' active' : '');
+      pill.textContent = i+1;
+      pill.title = `Opción ${i+1}`;
+      pill.addEventListener('click', ()=>{ currentIdx = i; render(); });
+      nav.appendChild(pill);
+    });
+  }
+
+  function render(){
+    nav.querySelectorAll('.option-pill').forEach((p,i)=> p.classList.toggle('active', i===currentIdx));
+    renderGrid(schedules[currentIdx], colorMap);
+  }
+  render();
+}
+
+function renderGrid(schedule, colorMap){
+  const view = document.getElementById('scheduleView');
+  const activeDays = getActiveDays();
+  const numDays = activeDays.length;
+  const startHour = state.settings.hourStart, endHour = state.settings.hourEnd;
+  const hourH = 36;
+  const totalH = (endHour-startHour)*hourH;
+  const labelColW = state.settings.timeFormat==='12' ? 60 : 46;
+  const gridWidth = 660;
+  const colWidth = gridWidth/numDays;
+  const dark = state.settings.dark;
+
+  let hourLabels = '';
+  for(let h=startHour; h<=endHour; h++){
+    hourLabels += `<div class="hour-label" style="top:${(h-startHour)*hourH-6}px; left:0;">${formatHourLabel(h)}</div>`;
+  }
+  let dayHeads = `<div style="display:grid; grid-template-columns:repeat(${numDays},1fr); margin-left:${labelColW}px; width:${gridWidth}px;">`;
+  activeDays.forEach(d=> dayHeads += `<div class="day-head">${d}</div>`);
+  dayHeads += `</div>`;
+
+  let dayCols = '';
+  activeDays.forEach((d,i)=>{
+    dayCols += `<div class="day-col" style="position:absolute; top:0; left:${labelColW + i*colWidth}px; width:${colWidth}px; height:${totalH}px;"></div>`;
+  });
+
+  const dayIndex = {}; activeDays.forEach((d,i)=>dayIndex[d]=i);
+  let blocksHtml = '';
+  schedule.forEach(sec=>{
+    const top = (toMin(sec.start)/60 - startHour) * hourH;
+    const timeBasedHeight = Math.max((toMin(sec.end)-toMin(sec.start))/60*hourH, 22);
+
+    const hasRoomOrGroup = !!(sec.room || sec.group);
+    const hasProfessor = !!sec.professor;
+
+    const left = labelColW + dayIndex[sec.day]*colWidth + 2;
+    const c = colorMap[sec.course];
+    const bg = dark ? c.dbg : c.bg;
+    const text = dark ? c.dtext : c.text;
+    blocksHtml += `<div class="block" style="top:${top}px; left:${left}px; width:${colWidth-6}px; min-height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
+      <div class="b-course">${sec.course}</div>
+      <div class="b-meta">${sec.section} · ${formatTimeStr(sec.start)}–${formatTimeStr(sec.end)}</div>
+      ${hasRoomOrGroup ? `<div class="b-meta">${[sec.room && ('Aula '+sec.room), sec.group && ('Grupo '+sec.group)].filter(Boolean).join(' · ')}</div>` : ''}
+      ${hasProfessor ? `<div class="b-meta">${sec.professor}</div>` : ''}
+    </div>`;
+  });
+
+  view.innerHTML = `${dayHeads}
+    <div style="position:relative; height:${totalH}px; margin-top:6px;">
+      ${hourLabels}${dayCols}${blocksHtml}
+    </div>`;
+}
+
+/* ---------- Customize drawer ---------- */
+function applySettings(){
+  document.documentElement.style.setProperty('--accent', state.settings.accent);
+  document.body.classList.toggle('dark', state.settings.dark);
+  document.getElementById('darkToggle').checked = state.settings.dark;
+  document.getElementById('saturdayToggle').checked = state.settings.includeSaturday;
+  document.getElementById('timeFormatToggle').checked = state.settings.timeFormat === '12';
+}
+
+function buildDrawerControls(){
+  const sw = document.getElementById('swatches');
+  sw.innerHTML = '';
+  ACCENTS.forEach(color=>{
+    const s = document.createElement('div');
+    s.className = 'swatch' + (state.settings.accent===color ? ' selected' : '');
+    s.style.background = color;
+    s.addEventListener('click', ()=>{
+      state.settings.accent = color;
+      saveState(); applySettings(); buildDrawerControls();
+      generate();
+    });
+    sw.appendChild(s);
+  });
+
+  const hs = document.getElementById('hourStart');
+  const he = document.getElementById('hourEnd');
+  hs.innerHTML = ''; he.innerHTML = '';
+  for(let h=5; h<=12; h++) hs.innerHTML += `<option value="${h}" ${h===state.settings.hourStart?'selected':''}>${h}:00</option>`;
+  for(let h=15; h<=23; h++) he.innerHTML += `<option value="${h}" ${h===state.settings.hourEnd?'selected':''}>${h}:00</option>`;
+  hs.addEventListener('change', ()=>{
+    state.settings.hourStart = parseInt(hs.value);
+    saveState(); generate();
+  });
+  he.addEventListener('change', ()=>{
+    state.settings.hourEnd = parseInt(he.value);
+    saveState(); generate();
+  });
+}
+
+document.getElementById('darkToggle').addEventListener('change', (e)=>{
+  state.settings.dark = e.target.checked;
+  saveState(); applySettings();
+  generate();
+});
+
+document.getElementById('saturdayToggle').addEventListener('change', (e)=>{
+  state.settings.includeSaturday = e.target.checked;
+  saveState(); renderRows(); generate();
+});
+
+document.getElementById('timeFormatToggle').addEventListener('change', (e)=>{
+  state.settings.timeFormat = e.target.checked ? '12' : '24';
+  saveState(); generate();
+});
+
+document.getElementById('openCustomize').addEventListener('click', ()=>{
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+});
+function closeDrawerFn(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+document.getElementById('closeDrawer').addEventListener('click', closeDrawerFn);
+document.getElementById('overlay').addEventListener('click', closeDrawerFn);
+
+/* ---------- Wire up main actions ---------- */
+document.getElementById('scheduleTitleInput').addEventListener('input', (e)=>{
+  const proj = getActiveProject();
+  proj.name = e.target.value || 'Horario sin título';
+  document.getElementById('exportTitle').textContent = proj.name;
+  saveState();
+  renderTabs();
+});
+
+document.getElementById('addRow').addEventListener('click', addRow);
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  getActiveProject().rows = [emptyRow(), emptyRow()];
+  saveState(); renderRows(); generate();
+});
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  const target = document.getElementById('exportCapture');
+  if(!target || schedules.length===0) return;
+  if(typeof html2canvas !== 'function'){
+    showToast('La herramienta de descarga aún no ha cargado (necesita internet la primera vez). Espera unos segundos e inténtalo de nuevo.');
+    return;
+  }
+  const btn = document.getElementById('downloadBtn');
+  const original = btn.textContent;
+  btn.textContent = 'Generando imagen…';
+  const projName = (getActiveProject().name || 'horario').replace(/\s+/g,'_').replace(/[^\w\-]/g,'');
+  html2canvas(target, {backgroundColor: state.settings.dark ? '#1E212C' : '#ffffff', scale:2}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = `${projName}_opcion_${currentIdx+1}_de_${schedules.length}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    btn.textContent = original;
+  }).catch(()=>{ btn.textContent = original; });
+});
+
+/* ---------- Init ---------- */
+try{
+  applySettings();
+  buildDrawerControls();
+  renderTabs();
+  renderRows();
+  generate();
+  if(!storageWorks){
+    document.getElementById('storageNotice').style.display = 'block';
+  }
+}catch(e){
+  showFatalError('No se pudo iniciar el planificador: ' + e.message);
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+</body>
+</html>
