@@ -96,21 +96,48 @@
   }
   .panel h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 4px;}
   .panel .hint{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
+  .schedule-title-input{
+    display:block; width:100%; font-family:'Fraunces',serif; font-weight:600; font-size:19px;
+    color:var(--ink); border:none; border-bottom:1px solid transparent; background:transparent;
+    padding:2px 0 4px; margin:0 0 4px;
+  }
+  .schedule-title-input:hover{border-bottom-color:var(--rule);}
+  .schedule-title-input:focus{outline:none; border-bottom-color:var(--accent);}
+  #exportCapture{background:var(--panel); padding:18px 12px 4px;}
+  .export-title{
+    font-family:'Fraunces',serif; font-weight:600; font-size:20px; color:var(--ink);
+    margin:0 0 16px; text-align:center;
+  }
 
   #rows{display:flex; flex-direction:column; gap:10px;}
-  .row{
-    display:grid; grid-template-columns: 1.4fr 0.8fr 0.85fr 0.85fr 0.85fr auto;
-    gap:8px; align-items:center;
+  .row-card{
+    border:1px solid var(--rule); border-radius:10px; padding:10px;
+    display:flex; flex-direction:column; gap:8px;
   }
-  .row input, .row select{
+  .row{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  }
+  .row-extra{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .row input, .row select, .row-extra input{
     font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px;
     border:1px solid var(--rule); border-radius:8px; background:var(--paper);
-    color:var(--ink); width:100%;
+    color:var(--ink);
+    field-sizing: content;
   }
-  .row input:focus, .row select:focus{outline:none; border-color:var(--accent); background:var(--panel);}
+  .row input[data-field="course"]{ flex:2 1 150px; min-width:120px; max-width:100%; }
+  .row input[data-field="section"]{ flex:1 1 80px; min-width:70px; max-width:160px; }
+  .row select[data-field="day"]{ flex:0 1 78px; min-width:70px; }
+  .row input[data-field="start"], .row input[data-field="end"]{ flex:0 1 96px; min-width:88px; }
+  .row-extra input[data-field="room"]{ flex:1 1 100px; min-width:90px; max-width:220px; }
+  .row-extra input[data-field="group"]{ flex:1 1 80px; min-width:70px; max-width:160px; }
+  .row-extra input[data-field="professor"]{ flex:2 1 140px; min-width:120px; max-width:100%; }
+  .row-extra input{ font-size:13px; padding:8px 10px; }
+  .row input:focus, .row select:focus, .row-extra input:focus{outline:none; border-color:var(--accent); background:var(--panel);}
   .remove-btn{
     background:none; border:1px solid var(--rule); border-radius:8px; width:34px; height:34px;
-    color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1;
+    color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; flex:0 0 auto; margin-left:auto;
   }
   .remove-btn:hover{border-color:#C6512E; color:#C6512E;}
 
@@ -133,7 +160,7 @@
   }
   .option-pill:hover{border-color:var(--accent); color:var(--accent);}
   .option-pill.active{background:var(--accent); border-color:var(--accent); color:#fff;}
-  #legend{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px;}
+  #legend{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; justify-content:center;}
   .legend-item{display:flex; align-items:center; gap:7px; font-size:13px;}
   .legend-swatch{width:11px; height:11px; border-radius:3px; flex-shrink:0;}
 
@@ -149,8 +176,9 @@
   .day-col{border-left:1px solid var(--rule);}
   .hour-label{position:absolute; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-soft);}
   .block{
-    position:absolute; border-radius:6px; padding:6px 8px; overflow:hidden;
+    position:absolute; border-radius:6px; padding:6px 8px; overflow:visible;
     box-sizing:border-box; border-left:3px solid transparent;
+    box-shadow: 0 1px 4px rgba(0,0,0,.10);
   }
   .block .b-course{font-weight:600; font-size:12px; line-height:1.25;}
   .block .b-meta{font-family:'IBM Plex Mono',monospace; font-size:10.5px; margin-top:2px; opacity:.85;}
@@ -205,8 +233,8 @@
   .switch input:checked + .slider:before{transform:translateX(18px);}
 
   @media (max-width:640px){
-    .row{grid-template-columns: 1fr 1fr;}
-    .row .remove-btn{justify-self:end;}
+    .row input[data-field="course"]{ flex-basis:100%; }
+    .row-extra input[data-field="professor"]{ flex-basis:100%; }
     header{flex-direction:column;}
   }
   #errBanner{
@@ -285,16 +313,21 @@
   </div>
 
   <div id="resultsPanel" class="panel">
-    <h2>Tu horario</h2>
+    <input type="text" id="scheduleTitleInput" class="schedule-title-input" placeholder="Título de tu horario (ej. Semestre 2026-1)">
     <p class="hint" id="resultsHint">Se actualiza automáticamente mientras editas tus materias.</p>
     <div id="summary"></div>
     <div id="nav"></div>
-    <div id="legend"></div>
-    <div class="actions" style="margin-top:0; margin-bottom:18px;">
-      <button class="ghost" id="downloadBtn">↓ Descargar horario (imagen)</button>
+
+    <div id="exportCapture">
+      <h2 id="exportTitle" class="export-title"></h2>
+      <div id="legend"></div>
+      <div class="grid-wrap">
+        <div id="scheduleView" class="grid-inner"></div>
+      </div>
     </div>
-    <div class="grid-wrap">
-      <div id="scheduleView" class="grid-inner"></div>
+
+    <div class="actions" style="margin-top:18px; margin-bottom:0;">
+      <button class="ghost" id="downloadBtn">↓ Descargar horario (imagen)</button>
     </div>
   </div>
 
@@ -485,7 +518,7 @@ function defaultState(){
     settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24' }
   };
 }
-function emptyRow(){ return { course:"", section:"", day:"Lun", start:"08:00", end:"10:00" }; }
+function emptyRow(){ return { course:"", section:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"" }; }
 
 function loadState(){
   try{
@@ -571,27 +604,34 @@ function renderTabs(){
 
 /* ---------- Rows / builder ---------- */
 function rowTemplate(data){
-  const div = document.createElement('div');
-  div.className = 'row';
+  const card = document.createElement('div');
+  card.className = 'row-card';
   const activeDays = getActiveDays();
   const dayOptions = activeDays.includes(data.day) ? activeDays : [...activeDays, data.day];
-  div.innerHTML = `
-    <input type="text" placeholder="Materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
-    <input type="text" placeholder="Sección (ej. A)" data-field="section" value="${data.section||''}">
-    <select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select>
-    <input type="time" data-field="start" value="${data.start||'08:00'}">
-    <input type="time" data-field="end" value="${data.end||'10:00'}">
-    <button class="remove-btn" title="Eliminar fila">×</button>
+  card.innerHTML = `
+    <div class="row">
+      <input type="text" placeholder="Materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
+      <input type="text" placeholder="Sección (ej. A)" data-field="section" value="${data.section||''}">
+      <select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select>
+      <input type="time" data-field="start" value="${data.start||'08:00'}">
+      <input type="time" data-field="end" value="${data.end||'10:00'}">
+      <button class="remove-btn" title="Eliminar fila">×</button>
+    </div>
+    <div class="row-extra">
+      <input type="text" placeholder="Aula (ej. B-204)" data-field="room" value="${data.room||''}">
+      <input type="text" placeholder="Grupo (ej. 2)" data-field="group" value="${data.group||''}">
+      <input type="text" placeholder="Profesor(a)" data-field="professor" value="${data.professor||''}">
+    </div>
   `;
-  div.querySelectorAll('input, select').forEach(el=>{
+  card.querySelectorAll('input, select').forEach(el=>{
     el.addEventListener('input', syncRowsFromDOM);
     el.addEventListener('change', syncRowsFromDOM);
   });
-  div.querySelector('.remove-btn').addEventListener('click', ()=>{
-    div.remove();
+  card.querySelector('.remove-btn').addEventListener('click', ()=>{
+    card.remove();
     syncRowsFromDOM();
   });
-  return div;
+  return card;
 }
 
 function renderRows(){
@@ -604,13 +644,16 @@ function renderRows(){
 function syncRowsFromDOM(){
   const proj = getActiveProject();
   const rows = [];
-  document.querySelectorAll('#rows .row').forEach(div=>{
+  document.querySelectorAll('#rows .row-card').forEach(card=>{
     rows.push({
-      course: div.querySelector('[data-field="course"]').value,
-      section: div.querySelector('[data-field="section"]').value,
-      day: div.querySelector('[data-field="day"]').value,
-      start: div.querySelector('[data-field="start"]').value,
-      end: div.querySelector('[data-field="end"]').value
+      course: card.querySelector('[data-field="course"]').value,
+      section: card.querySelector('[data-field="section"]').value,
+      day: card.querySelector('[data-field="day"]').value,
+      start: card.querySelector('[data-field="start"]').value,
+      end: card.querySelector('[data-field="end"]').value,
+      room: card.querySelector('[data-field="room"]').value,
+      group: card.querySelector('[data-field="group"]').value,
+      professor: card.querySelector('[data-field="professor"]').value
     });
   });
   proj.rows = rows;
@@ -668,8 +711,10 @@ function formatHourLabel(h){
 function generate(){
   const proj = getActiveProject();
   const activeDays = getActiveDays();
-  const titleEl = document.querySelector('#resultsPanel h2');
-  if(titleEl) titleEl.textContent = proj.name;
+  const titleInput = document.getElementById('scheduleTitleInput');
+  const exportTitle = document.getElementById('exportTitle');
+  if(titleInput && document.activeElement !== titleInput) titleInput.value = proj.name;
+  if(exportTitle) exportTitle.textContent = proj.name;
 
   const skippedDay = proj.rows.some(r=> r.course.trim() && !activeDays.includes(r.day));
 
@@ -720,16 +765,32 @@ function generate(){
     colorMap[c] = proj.colorOverrides[c] ? buildColorFromHex(proj.colorOverrides[c]) : COLORS[i % COLORS.length];
   });
   courseNames.forEach(c=>{
-    const item = document.createElement('label');
+    const item = document.createElement('div');
     item.className = 'legend-item';
     item.style.cursor = 'pointer';
     item.title = 'Cambiar color de ' + c;
-    item.innerHTML = `<input type="color" value="${colorMap[c].border}" style="width:14px; height:14px; padding:0; border:none; background:none; cursor:pointer;"> ${c}`;
-    item.querySelector('input').addEventListener('input', (e)=>{
+
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = colorMap[c].border;
+
+    const label = document.createElement('span');
+    label.textContent = c;
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = colorMap[c].border;
+    picker.style.cssText = 'position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;';
+    picker.addEventListener('input', (e)=>{
       proj.colorOverrides[c] = e.target.value;
       saveState();
       generate();
     });
+
+    item.appendChild(swatch);
+    item.appendChild(label);
+    item.appendChild(picker);
+    item.addEventListener('click', ()=> picker.click());
     legend.appendChild(item);
   });
 
@@ -792,14 +853,20 @@ function renderGrid(schedule, colorMap){
   let blocksHtml = '';
   schedule.forEach(sec=>{
     const top = (toMin(sec.start)/60 - startHour) * hourH;
-    const height = Math.max((toMin(sec.end)-toMin(sec.start))/60*hourH, 22);
+    const timeBasedHeight = Math.max((toMin(sec.end)-toMin(sec.start))/60*hourH, 22);
+
+    const hasRoomOrGroup = !!(sec.room || sec.group);
+    const hasProfessor = !!sec.professor;
+
     const left = labelColW + dayIndex[sec.day]*colWidth + 2;
     const c = colorMap[sec.course];
     const bg = dark ? c.dbg : c.bg;
     const text = dark ? c.dtext : c.text;
-    blocksHtml += `<div class="block" style="top:${top}px; left:${left}px; width:${colWidth-6}px; height:${height}px; background:${bg}; border-left-color:${c.border}; color:${text};">
+    blocksHtml += `<div class="block" style="top:${top}px; left:${left}px; width:${colWidth-6}px; min-height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
       <div class="b-course">${sec.course}</div>
       <div class="b-meta">${sec.section} · ${formatTimeStr(sec.start)}–${formatTimeStr(sec.end)}</div>
+      ${hasRoomOrGroup ? `<div class="b-meta">${[sec.room && ('Aula '+sec.room), sec.group && ('Grupo '+sec.group)].filter(Boolean).join(' · ')}</div>` : ''}
+      ${hasProfessor ? `<div class="b-meta">${sec.professor}</div>` : ''}
     </div>`;
   });
 
@@ -876,13 +943,21 @@ document.getElementById('closeDrawer').addEventListener('click', closeDrawerFn);
 document.getElementById('overlay').addEventListener('click', closeDrawerFn);
 
 /* ---------- Wire up main actions ---------- */
+document.getElementById('scheduleTitleInput').addEventListener('input', (e)=>{
+  const proj = getActiveProject();
+  proj.name = e.target.value || 'Horario sin título';
+  document.getElementById('exportTitle').textContent = proj.name;
+  saveState();
+  renderTabs();
+});
+
 document.getElementById('addRow').addEventListener('click', addRow);
 document.getElementById('clearBtn').addEventListener('click', ()=>{
   getActiveProject().rows = [emptyRow(), emptyRow()];
   saveState(); renderRows(); generate();
 });
 document.getElementById('downloadBtn').addEventListener('click', ()=>{
-  const target = document.querySelector('.grid-wrap');
+  const target = document.getElementById('exportCapture');
   if(!target || schedules.length===0) return;
   if(typeof html2canvas !== 'function'){
     showToast('La herramienta de descarga aún no ha cargado (necesita internet la primera vez). Espera unos segundos e inténtalo de nuevo.');
@@ -891,7 +966,7 @@ document.getElementById('downloadBtn').addEventListener('click', ()=>{
   const btn = document.getElementById('downloadBtn');
   const original = btn.textContent;
   btn.textContent = 'Generando imagen…';
-  const projName = getActiveProject().name.replace(/\s+/g,'_');
+  const projName = (getActiveProject().name || 'horario').replace(/\s+/g,'_').replace(/[^\w\-]/g,'');
   html2canvas(target, {backgroundColor: state.settings.dark ? '#1E212C' : '#ffffff', scale:2}).then(canvas=>{
     const link = document.createElement('a');
     link.download = `${projName}_opcion_${currentIdx+1}_de_${schedules.length}.png`;
