@@ -43,7 +43,7 @@
     opacity:.35;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
   }
-  .wrap{max-width:1100px; margin:0 auto; padding:48px 24px 100px; position:relative; z-index:1;}
+  .wrap{max-width:960px; margin:0 auto; padding:48px 24px 100px; position:relative; z-index:1;}
 
   header{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:34px;}
   .eyebrow{
@@ -93,7 +93,7 @@
 
   .panel{
     background:var(--panel); border:1px solid var(--rule); border-radius:14px;
-    padding:30px 32px 32px; margin-bottom:28px; box-shadow:var(--shadow);
+    padding:26px 28px 28px; margin-bottom:28px; box-shadow:var(--shadow);
   }
   .panel h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 4px;}
   .panel .hint{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
@@ -110,51 +110,62 @@
     margin:0 0 16px; text-align:center;
   }
 
-  #rows{display:flex; flex-direction:column; gap:14px;}
+  #rows{display:flex; flex-direction:column; gap:12px;}
   .row-card{
-    border:1px solid var(--rule); border-radius:10px; padding:14px;
-    display:flex; flex-direction:column; gap:10px;
+    border:1px solid var(--rule); border-radius:11px; padding:16px 18px;
+    display:flex; flex-direction:column; gap:14px;
+    transition:opacity .15s ease, background .15s ease;
   }
-  .row{
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  .row-head{ display:flex; align-items:center; gap:12px; }
+  .row-head input[data-field="course"]{
+    flex:1; min-width:0; border:none; border-bottom:1px solid transparent; background:transparent;
+    font-family:'Fraunces',serif; font-weight:600; font-size:16.5px; color:var(--ink);
+    padding:4px 2px 6px;
   }
-  .row-extra{
-    display:flex; flex-wrap:wrap; gap:8px;
+  .row-head input[data-field="course"]::placeholder{ font-weight:500; color:var(--ink-soft); opacity:.6; }
+  .row-head input[data-field="course"]:hover{ border-bottom-color:var(--rule); }
+  .row-head input[data-field="course"]:focus{ outline:none; border-bottom-color:var(--accent); }
+
+  .row-fields{
+    display:grid; grid-template-columns: 0.7fr 0.9fr 0.85fr 0.85fr 1fr 1.3fr;
+    gap:12px;
   }
-  .row input, .row select, .row-extra input{
-    font-family:'Inter',sans-serif; font-size:14px; padding:9px 10px;
-    border:1px solid var(--rule); border-radius:8px; background:var(--paper);
-    color:var(--ink);
-    field-sizing: content;
+  .field{ display:flex; flex-direction:column; gap:5px; min-width:0; }
+  .field label{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--ink-soft);
   }
-  .row input[data-field="course"]{ flex:2 1 150px; min-width:120px; max-width:100%; }
-  .row input[data-field="group"]{ flex:1 1 80px; min-width:70px; max-width:160px; }
-  .row select[data-field="day"]{ flex:0 1 78px; min-width:70px; }
-  .row input[data-field="start"], .row input[data-field="end"]{ flex:0 1 96px; min-width:88px; }
-  .row-extra input[data-field="room"]{ flex:1 1 120px; min-width:100px; max-width:260px; }
-  .row-extra input[data-field="professor"]{ flex:2 1 160px; min-width:130px; max-width:100%; }
-  .row-extra input{ font-size:13px; padding:8px 10px; }
-  .row input:focus, .row select:focus, .row-extra input:focus{outline:none; border-color:var(--accent); background:var(--panel);}
+  .field input, .field select{
+    width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; font-size:13.5px;
+    padding:8px 9px; border:1px solid var(--rule); border-radius:7px;
+    background:var(--paper); color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--accent); background:var(--panel); }
+
   .remove-btn{
-    background:none; border:1px solid var(--rule); border-radius:8px; width:34px; height:34px;
-    color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; flex:0 0 auto; margin-left:auto;
+    background:none; border:1px solid var(--rule); border-radius:8px; width:32px; height:32px;
+    color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; flex:0 0 auto;
   }
   .remove-btn:hover{border-color:#C6512E; color:#C6512E;}
 
-  .row-toggle{ position:relative; width:36px; height:21px; flex:0 0 auto; cursor:pointer; }
+  .row-toggle{ position:relative; width:34px; height:20px; flex:0 0 auto; cursor:pointer; }
   .row-toggle input{ opacity:0; width:0; height:0; }
   .row-toggle .slider{
     position:absolute; inset:0; background:var(--rule); border-radius:20px; transition:.2s;
   }
   .row-toggle .slider:before{
-    content:""; position:absolute; width:15px; height:15px; left:3px; top:3px; background:#fff;
+    content:""; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff;
     border-radius:50%; transition:.2s;
   }
   .row-toggle input:checked + .slider{ background:#2E7D5B; }
-  .row-toggle input:checked + .slider:before{ transform:translateX(15px); }
-  .row-card.row-disabled{ opacity:.5; }
-  .row-card.row-disabled input:not([data-field="enabled"]), .row-card.row-disabled select{
-    background:transparent;
+  .row-toggle input:checked + .slider:before{ transform:translateX(14px); }
+  .row-card.row-disabled{ opacity:.5; background:var(--paper); }
+
+  @media (max-width:760px){
+    .row-fields{ grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width:480px){
+    .row-fields{ grid-template-columns: repeat(2, 1fr); }
   }
 
 
@@ -250,8 +261,6 @@
   .switch input:checked + .slider:before{transform:translateX(18px);}
 
   @media (max-width:640px){
-    .row input[data-field="course"]{ flex-basis:100%; }
-    .row-extra input[data-field="professor"]{ flex-basis:100%; }
     header{flex-direction:column;}
   }
   #errBanner{
@@ -753,21 +762,21 @@ function rowTemplate(data){
   const activeDays = getActiveDays();
   const dayOptions = activeDays.includes(data.day) ? activeDays : [...activeDays, data.day];
   card.innerHTML = `
-    <div class="row">
+    <div class="row-head">
       <label class="row-toggle" title="Mostrar/ocultar esta materia del horario">
         <input type="checkbox" data-field="enabled" ${data.enabled === false ? '' : 'checked'}>
         <span class="slider"></span>
       </label>
-      <input type="text" placeholder="Materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
-      <input type="text" placeholder="Grupo (ej. 1)" data-field="group" value="${data.group||''}">
-      <select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select>
-      <input type="time" data-field="start" value="${data.start||'08:00'}">
-      <input type="time" data-field="end" value="${data.end||'10:00'}">
+      <input type="text" placeholder="Nombre de la materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
       <button class="remove-btn" title="Eliminar fila">×</button>
     </div>
-    <div class="row-extra">
-      <input type="text" placeholder="Aula (ej. B-204)" data-field="room" value="${data.room||''}">
-      <input type="text" placeholder="Profesor(a)" data-field="professor" value="${data.professor||''}">
+    <div class="row-fields">
+      <div class="field"><label>Grupo</label><input type="text" placeholder="1" data-field="group" value="${data.group||''}"></div>
+      <div class="field"><label>Día</label><select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="field"><label>Inicio</label><input type="time" data-field="start" value="${data.start||'08:00'}"></div>
+      <div class="field"><label>Fin</label><input type="time" data-field="end" value="${data.end||'10:00'}"></div>
+      <div class="field"><label>Aula</label><input type="text" placeholder="B-204" data-field="room" value="${data.room||''}"></div>
+      <div class="field"><label>Profesor(a)</label><input type="text" placeholder="Nombre" data-field="professor" value="${data.professor||''}"></div>
     </div>
   `;
   card.querySelectorAll('input, select').forEach(el=>{
