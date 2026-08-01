@@ -43,7 +43,7 @@
     opacity:.35;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
   }
-  .wrap{max-width:960px; margin:0 auto; padding:48px 24px 100px; position:relative; z-index:1;}
+  .wrap{max-width:1100px; margin:0 auto; padding:48px 24px 100px; position:relative; z-index:1;}
 
   header{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:34px;}
   .eyebrow{
@@ -93,7 +93,7 @@
 
   .panel{
     background:var(--panel); border:1px solid var(--rule); border-radius:14px;
-    padding:24px 24px 26px; margin-bottom:28px; box-shadow:var(--shadow);
+    padding:30px 32px 32px; margin-bottom:28px; box-shadow:var(--shadow);
   }
   .panel h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 4px;}
   .panel .hint{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
@@ -110,10 +110,10 @@
     margin:0 0 16px; text-align:center;
   }
 
-  #rows{display:flex; flex-direction:column; gap:10px;}
+  #rows{display:flex; flex-direction:column; gap:14px;}
   .row-card{
-    border:1px solid var(--rule); border-radius:10px; padding:10px;
-    display:flex; flex-direction:column; gap:8px;
+    border:1px solid var(--rule); border-radius:10px; padding:14px;
+    display:flex; flex-direction:column; gap:10px;
   }
   .row{
     display:flex; flex-wrap:wrap; gap:8px; align-items:center;
@@ -140,6 +140,23 @@
     color:var(--ink-soft); cursor:pointer; font-size:16px; line-height:1; flex:0 0 auto; margin-left:auto;
   }
   .remove-btn:hover{border-color:#C6512E; color:#C6512E;}
+
+  .row-toggle{ position:relative; width:36px; height:21px; flex:0 0 auto; cursor:pointer; }
+  .row-toggle input{ opacity:0; width:0; height:0; }
+  .row-toggle .slider{
+    position:absolute; inset:0; background:var(--rule); border-radius:20px; transition:.2s;
+  }
+  .row-toggle .slider:before{
+    content:""; position:absolute; width:15px; height:15px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:.2s;
+  }
+  .row-toggle input:checked + .slider{ background:#2E7D5B; }
+  .row-toggle input:checked + .slider:before{ transform:translateX(15px); }
+  .row-card.row-disabled{ opacity:.5; }
+  .row-card.row-disabled input:not([data-field="enabled"]), .row-card.row-disabled select{
+    background:transparent;
+  }
+
 
   .actions{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;}
   button.primary, button.ghost{
@@ -308,7 +325,7 @@
 
   <div class="panel">
     <h2>Materias y secciones</h2>
-    <p class="hint">Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. Si una materia tiene varios grupos posibles (ej. "Grupo 1" reunido martes y jueves, "Grupo 2" reunido martes y viernes), agrégalos todos con su propio número de grupo: el planificador armará automáticamente las combinaciones posibles entre todos los grupos de todas tus materias, sin cruces de horario.</p>
+    <p class="hint">Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. Si una materia tiene varios grupos posibles (ej. "Grupo 1" reunido martes y jueves, "Grupo 2" reunido martes y viernes), agrégalos todos con su propio número de grupo: el planificador armará automáticamente las combinaciones posibles entre todos los grupos de todas tus materias, sin cruces de horario. Usa el interruptor de la izquierda de cada fila para ocultar temporalmente una materia y ver cómo queda el horario sin ella, sin necesidad de borrarla.</p>
     <div id="rows"></div>
     <div class="actions">
       <button class="ghost" id="addRow">+ Agregar sección</button>
@@ -638,7 +655,7 @@ function defaultState(){
     settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24' }
   };
 }
-function emptyRow(){ return { course:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"" }; }
+function emptyRow(){ return { course:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"", enabled:true }; }
 
 function loadState(){
   try{
@@ -654,6 +671,7 @@ function loadState(){
       (p.rows||[]).forEach(r=>{
         if(r.section && !r.group) r.group = r.section;
         delete r.section;
+        if(r.enabled === undefined) r.enabled = true;
       });
     });
     return parsed;
@@ -731,11 +749,15 @@ function renderTabs(){
 /* ---------- Rows / builder ---------- */
 function rowTemplate(data){
   const card = document.createElement('div');
-  card.className = 'row-card';
+  card.className = 'row-card' + (data.enabled === false ? ' row-disabled' : '');
   const activeDays = getActiveDays();
   const dayOptions = activeDays.includes(data.day) ? activeDays : [...activeDays, data.day];
   card.innerHTML = `
     <div class="row">
+      <label class="row-toggle" title="Mostrar/ocultar esta materia del horario">
+        <input type="checkbox" data-field="enabled" ${data.enabled === false ? '' : 'checked'}>
+        <span class="slider"></span>
+      </label>
       <input type="text" placeholder="Materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
       <input type="text" placeholder="Grupo (ej. 1)" data-field="group" value="${data.group||''}">
       <select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select>
@@ -751,6 +773,9 @@ function rowTemplate(data){
   card.querySelectorAll('input, select').forEach(el=>{
     el.addEventListener('input', syncRowsFromDOM);
     el.addEventListener('change', syncRowsFromDOM);
+  });
+  card.querySelector('[data-field="enabled"]').addEventListener('change', (e)=>{
+    card.classList.toggle('row-disabled', !e.target.checked);
   });
   card.querySelector('.remove-btn').addEventListener('click', ()=>{
     card.remove();
@@ -777,7 +802,8 @@ function syncRowsFromDOM(){
       start: card.querySelector('[data-field="start"]').value,
       end: card.querySelector('[data-field="end"]').value,
       room: card.querySelector('[data-field="room"]').value,
-      professor: card.querySelector('[data-field="professor"]').value
+      professor: card.querySelector('[data-field="professor"]').value,
+      enabled: card.querySelector('[data-field="enabled"]').checked
     });
   });
   proj.rows = rows;
@@ -840,9 +866,9 @@ function generate(){
   if(titleInput && document.activeElement !== titleInput) titleInput.value = proj.name;
   if(exportTitle) exportTitle.textContent = proj.name;
 
-  const skippedDay = proj.rows.some(r=> r.course.trim() && !activeDays.includes(r.day));
+  const skippedDay = proj.rows.some(r=> r.enabled !== false && r.course.trim() && !activeDays.includes(r.day));
 
-  const data = proj.rows.filter(r=> r.course.trim() && r.start && r.end && activeDays.includes(r.day))
+  const data = proj.rows.filter(r=> r.enabled !== false && r.course.trim() && r.start && r.end && activeDays.includes(r.day))
     .map(r=>({...r, course:r.course.trim(), group:(r.group.trim()||"único")}));
   const summary = document.getElementById('summary');
   const nav = document.getElementById('nav');
