@@ -96,6 +96,21 @@
     padding:26px 28px 28px; margin-bottom:28px; box-shadow:var(--shadow);
   }
   .panel h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 4px;}
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; }
+  .panel-head h2{ margin:0; }
+  .collapse-btn{
+    background:none; border:1px solid var(--rule); border-radius:8px; width:30px; height:30px;
+    color:var(--ink-soft); cursor:pointer; font-size:13px; line-height:1; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; transition:transform .18s ease;
+  }
+  .collapse-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .collapse-btn.collapsed{ transform:rotate(-90deg); }
+  #materiasBody{
+    display:grid; grid-template-rows:1fr; transition:grid-template-rows .2s ease;
+  }
+  #materiasBody > #materiasBodyInner{ overflow:hidden; min-height:0; }
+  #materiasBody.collapsed{ grid-template-rows:0fr; }
+  #materiasBody .hint{ margin-top:14px; }
   .panel .hint{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
   .schedule-title-input{
     display:block; width:100%; font-family:'Fraunces',serif; font-weight:600; font-size:19px;
@@ -333,12 +348,21 @@
   <div class="tabs-bar" id="tabsBar"></div>
 
   <div class="panel">
-    <h2>Materias y secciones</h2>
-    <p class="hint">Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. Si una materia tiene varios grupos posibles (ej. "Grupo 1" reunido martes y jueves, "Grupo 2" reunido martes y viernes), agrégalos todos con su propio número de grupo: el planificador armará automáticamente las combinaciones posibles entre todos los grupos de todas tus materias, sin cruces de horario. Usa el interruptor de la izquierda de cada fila para ocultar temporalmente una materia y ver cómo queda el horario sin ella, sin necesidad de borrarla.</p>
-    <div id="rows"></div>
-    <div class="actions">
-      <button class="ghost" id="addRow">+ Agregar sección</button>
-      <button class="ghost" id="clearBtn">Limpiar materias</button>
+    <div class="panel-head">
+      <h2>Materias y secciones</h2>
+      <button class="collapse-btn" id="collapseMateriasBtn" title="Mostrar u ocultar esta sección">
+        <span id="collapseMateriasIcon">▾</span>
+      </button>
+    </div>
+    <div id="materiasBody">
+      <div id="materiasBodyInner">
+        <p class="hint">Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. Si una materia tiene varios grupos posibles (ej. "Grupo 1" reunido martes y jueves, "Grupo 2" reunido martes y viernes), agrégalos todos con su propio número de grupo: el planificador armará automáticamente las combinaciones posibles entre todos los grupos de todas tus materias, sin cruces de horario. Usa el interruptor de la izquierda de cada fila para ocultar temporalmente una materia y ver cómo queda el horario sin ella, sin necesidad de borrarla.</p>
+        <div id="rows"></div>
+        <div class="actions">
+          <button class="ghost" id="addRow">+ Agregar sección</button>
+          <button class="ghost" id="clearBtn">Limpiar materias</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -661,7 +685,7 @@ function defaultState(){
   return {
     projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{} }],
     activeId: null,
-    settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24' }
+    settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24', materiasCollapsed:false }
   };
 }
 function emptyRow(){ return { course:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"", enabled:true }; }
@@ -1060,6 +1084,8 @@ function applySettings(){
   document.getElementById('darkToggle').checked = state.settings.dark;
   document.getElementById('saturdayToggle').checked = state.settings.includeSaturday;
   document.getElementById('timeFormatToggle').checked = state.settings.timeFormat === '12';
+  document.getElementById('materiasBody').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
+  document.getElementById('collapseMateriasBtn').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
 }
 
 function buildDrawerControls(){
@@ -1106,6 +1132,12 @@ document.getElementById('saturdayToggle').addEventListener('change', (e)=>{
 document.getElementById('timeFormatToggle').addEventListener('change', (e)=>{
   state.settings.timeFormat = e.target.checked ? '12' : '24';
   saveState(); generate();
+});
+
+document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
+  state.settings.materiasCollapsed = !state.settings.materiasCollapsed;
+  saveState();
+  applySettings();
 });
 
 document.getElementById('openShare').addEventListener('click', showShareModal);
