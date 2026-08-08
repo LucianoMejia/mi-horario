@@ -82,30 +82,112 @@ function showPromptModal({title, message, initialValue, confirmText, onConfirm})
 }
 
 function encodePayload(obj){
-  return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  const compact = JSON.stringify({
+    n: obj.name || '',
+    r: (obj.rows || []).map(r => [
+      r.course || '',
+      r.group || '',
+      r.day || '',
+      r.start || '',
+      r.end || '',
+      r.room || '',
+      r.professor || '',
+      r.enabled === false ? 0 : 1
+    ].join(',')),
+    c: Object.entries(obj.colorOverrides || {}).filter(([, value]) => value).map(([key, value]) => `${key},${value}`)
+  });
+  const encoded = btoa(unescape(encodeURIComponent(compact)));
+  return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 function decodePayloadCode(code){
-  return decodeURIComponent(escape(atob(code)));
+  if(typeof code !== 'string' || !code) return null;
+  try{
+    const normalized = code.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+    const decoded = decodeURIComponent(escape(atob(padded)));
+    const parsed = JSON.parse(decoded);
+    if(parsed && Array.isArray(parsed.r)){
+      return {
+        name: parsed.n || '',
+        rows: parsed.r.map(rowStr => {
+          const values = rowStr.split(',');
+          return {
+            course: values[0] || '',
+            group: values[1] || '',
+            day: values[2] || '',
+            start: values[3] || '',
+            end: values[4] || '',
+            room: values[5] || '',
+            professor: values[6] || '',
+            enabled: values[7] !== '0'
+          };
+        }),
+        colorOverrides: (parsed.c || []).reduce((acc, entry) => {
+          const [key, value] = entry.split(',');
+          if(key) acc[key] = value;
+          return acc;
+        }, {})
+      };
+    }
+  }catch(e){}
+
+  try{
+    return JSON.parse(decodeURIComponent(code));
+  }catch(e){
+    try{ return JSON.parse(decodeURIComponent(escape(atob(code)))); }catch(err){ return null; }
+  }
+}
+function getShareUrl(code){
+  const base = window.location.href.split('#')[0].split('?')[0];
+  return `${base}#share=${code}`;
 }
 
-function showShareModal(){
-  const proj = getActiveProject();
-  const payloadObj = { v:1, name: proj.name, rows: proj.rows, colorOverrides: proj.colorOverrides || {} };
-  const payloadStr = JSON.stringify(payloadObj);
-  const code = encodePayload(payloadObj);
+function copyTextToClipboard(text){
+  let copied = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text);
+      copied = true;
+    }
+  }catch(e){}
+  if(!copied){
+    try{ copied = document.execCommand('copy'); }catch(e){}
+  }
+  return copied;
+}
 
+function showWebShareModal(){
+  const shareUrl = window.location.href.split('#')[0].split('?')[0];
+  const shareText = 'Mira Mi Horario, el planificador para armar tu horario ideal sin cruces.';
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal-box" style="max-width:440px;">
-      <h4>Compartir "${proj.name}"</h4>
-      <p>Copia este código y envíaselo a quien quieras. Al pegarlo en "Importar" se le creará una pestaña nueva con este mismo horario.</p>
-      <textarea id="shareCode" readonly style="width:100%; height:90px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${code}</textarea>
-      <div class="modal-actions" style="justify-content:space-between;">
-        <button class="ghost" data-act="file">↓ Descargar archivo</button>
-        <div style="display:flex; gap:8px;">
+    <div class="modal-box" style="max-width:460px;">
+      <h4>Compartir la web</h4>
+      <p>Comparte la página de Mi Horario para que otros la prueben y la descubran.</p>
+      <label style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:6px;">Enlace</label>
+      <textarea id="webShareLink" readonly style="width:100%; height:70px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${shareUrl}</textarea>
+      <div class="modal-actions" style="justify-content:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+          <button class="ghost" data-act="wa" title="WhatsApp" aria-label="Compartir por WhatsApp">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M12.04 2C6.59 2 2.16 6.43 2.16 11.88c0 2.1.56 4.12 1.6 5.87L2 22l4.43-1.16a9.86 9.86 0 0 0 5.6 1.6c5.45 0 9.88-4.43 9.88-9.88S17.49 2 12.04 2Zm0 17.89a8.03 8.03 0 0 1-4.08-1.12l-.29-.17-2.63.69.7-2.56-.19-.28A8.03 8.03 0 1 1 12.04 19.89Zm4.47-6.01c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.41-.14-.01-.3-.01-.46-.01-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.35 1 2.51.13.16 1.72 2.63 4.17 3.68.58.25 1.04.4 1.4.51.58.18 1.11.16 1.53.1.47-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/></svg>
+          </button>
+          <button class="ghost" data-act="tg" title="Telegram" aria-label="Compartir por Telegram">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M9.78 14.56 9.42 19a.78.78 0 0 0 1.24.67l2.76-2.57 5.74 4.23a1.4 1.4 0 0 0 2.2-.98V4.47a1.4 1.4 0 0 0-2.2-.98L3.07 10.81a1.4 1.4 0 0 0 .16 2.52l6.55 1.23Zm.84-2.53 8.1-5.11-5.03 6.69-1.66-2.48a.58.58 0 0 0-.98-.14l-.43.44Z"/></svg>
+          </button>
+          <button class="ghost" data-act="fb" title="Facebook" aria-label="Compartir en Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M13.5 22v-8.5h2.85l.43-3.3H13.5V4.8c0-.95.27-1.6 1.64-1.6h1.75V.16C16.5.11 15.47 0 14.3 0c-2.53 0-4.26 1.54-4.26 4.38v2.45H7.2v3.3h2.84V22h3.46Z"/></svg>
+          </button>
+          <button class="ghost" data-act="x" title="Twitter (X)" aria-label="Compartir en Twitter (X)">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M18.9 2H22l-6.8 7.77L23.3 22h-5.95l-4.67-6.12L6.94 22H3.84l7.27-8.3L.7 2h6.1l4.2 5.56L18.9 2Zm-1.04 18h1.15L6.2 4H5.02l12.84 16Z"/></svg>
+          </button>
+          <button class="ghost" data-act="mail" title="Correo" aria-label="Compartir por correo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 4.2-8 5.33L4 8.2V6.8l8 5.33 8-5.33v1.4Z"/></svg>
+          </button>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+          <button class="ghost" data-act="copy">📋 Copiar</button>
           <button class="ghost" data-act="close">Cerrar</button>
-          <button class="primary" data-act="copy">Copiar código</button>
         </div>
       </div>
     </div>`;
@@ -114,87 +196,83 @@ function showShareModal(){
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
   overlay.querySelector('[data-act="close"]').addEventListener('click', close);
   overlay.querySelector('[data-act="copy"]').addEventListener('click', ()=>{
-    const ta = overlay.querySelector('#shareCode');
+    const ta = overlay.querySelector('#webShareLink');
     ta.focus(); ta.select();
-    let copied = false;
-    try{
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(code);
-        copied = true;
-      }
-    }catch(e){}
-    if(!copied){
-      try{ copied = document.execCommand('copy'); }catch(e){}
-    }
-    showToast(copied ? 'Código copiado.' : 'Selecciona el texto y cópialo con Ctrl+C.');
+    const copied = copyTextToClipboard(shareUrl);
+    showToast(copied ? 'Enlace copiado.' : 'No se pudo copiar el enlace.');
   });
-  overlay.querySelector('[data-act="file"]').addEventListener('click', ()=>{
-    const blob = new Blob([payloadStr], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (proj.name || 'horario').replace(/\s+/g,'_').replace(/[^\w\-]/g,'') + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  overlay.querySelector('[data-act="wa"]').addEventListener('click', ()=>{
+    const url = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+  overlay.querySelector('[data-act="tg"]').addEventListener('click', ()=>{
+    const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+  overlay.querySelector('[data-act="fb"]').addEventListener('click', ()=>{
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+  overlay.querySelector('[data-act="x"]').addEventListener('click', ()=>{
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+  overlay.querySelector('[data-act="mail"]').addEventListener('click', ()=>{
+    const url = `mailto:?subject=${encodeURIComponent('Mi Horario')}&body=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   });
 }
 
-function showImportModal(){
+function showShareModal(){
+  const proj = getActiveProject();
+  const payloadObj = { v:1, name: proj.name, rows: proj.rows, colorOverrides: proj.colorOverrides || {} };
+  const code = encodePayload(payloadObj);
+
+  const shareUrl = getShareUrl(code);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box" style="max-width:440px;">
-      <h4>Importar horario</h4>
-      <p>Pega aquí el código que te compartieron, o sube el archivo .json. Se crea una pestaña nueva sin tocar tus horarios actuales.</p>
-      <textarea id="importCode" placeholder="Pega el código aquí..." style="width:100%; height:80px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:10px; box-sizing:border-box;"></textarea>
-      <input type="file" id="importFile" accept="application/json,.json" style="margin-bottom:16px; font-size:13px; width:100%;">
-      <div class="modal-actions">
-        <button class="ghost" data-act="cancel">Cancelar</button>
-        <button class="primary" data-act="ok">Crear horario</button>
+      <h4>Compartir "${proj.name}"</h4>
+      <p>Copia este enlace y envíaselo. Quien lo abra verá una pestaña nueva con este mismo horario.</p>
+      <label style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:6px;">Enlace compartible</label>
+      <textarea id="shareLink" readonly style="width:100%; height:70px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${shareUrl}</textarea>
+      <div class="modal-actions" style="justify-content:flex-end; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="ghost" data-act="link">🔗 Copiar enlace</button>
+          <button class="ghost" data-act="close">Cerrar</button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   function close(){ overlay.remove(); }
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
-  overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
-
-  const fileInput = overlay.querySelector('#importFile');
-  const codeInput = overlay.querySelector('#importCode');
-
-  function finishImport(payloadStr){
-    let parsed;
-    try{ parsed = JSON.parse(payloadStr); }
-    catch(e){ showToast('No se pudo leer ese horario. Revisa el código o el archivo.'); return; }
-    if(!parsed || !Array.isArray(parsed.rows)){ showToast('El archivo no tiene el formato esperado.'); return; }
-    const newRows = parsed.rows.map(r => Object.assign(emptyRow(), r));
-    const proj = {
-      id: "p"+Date.now(),
-      name: parsed.name || 'Horario importado',
-      rows: newRows,
-      colorOverrides: parsed.colorOverrides || {}
-    };
-    state.projects.push(proj);
-    state.activeId = proj.id;
-    saveState(); renderTabs(); renderRows(); generate();
-    close();
-    showToast('Horario importado en una pestaña nueva.');
-  }
-
-  overlay.querySelector('[data-act="ok"]').addEventListener('click', ()=>{
-    if(fileInput.files && fileInput.files[0]){
-      const reader = new FileReader();
-      reader.onload = ()=> finishImport(reader.result);
-      reader.onerror = ()=> showToast('No se pudo leer el archivo.');
-      reader.readAsText(fileInput.files[0]);
-      return;
-    }
-    const raw = codeInput.value.trim();
-    if(!raw){ showToast('Pega un código o selecciona un archivo.'); return; }
-    let payloadStr;
-    try{ payloadStr = decodePayloadCode(raw); }
-    catch(e){ payloadStr = raw; } // maybe they pasted raw JSON instead of the code
-    finishImport(payloadStr);
+  overlay.querySelector('[data-act="close"]').addEventListener('click', close);
+  overlay.querySelector('[data-act="link"]').addEventListener('click', ()=>{
+    const ta = overlay.querySelector('#shareLink');
+    ta.focus(); ta.select();
+    const copied = copyTextToClipboard(shareUrl);
+    showToast(copied ? 'Enlace copiado.' : 'No se pudo copiar el enlace.');
   });
+}
+
+function maybeImportSharedScheduleFromHash(){
+  if(!window.location.hash.startsWith('#share=')) return;
+  const payloadStr = window.location.hash.replace('#share=', '');
+  const parsed = decodePayloadCode(payloadStr);
+  if(!parsed || !Array.isArray(parsed.rows)){ showToast('El enlace compartido no tiene el formato esperado.'); return; }
+  const newRows = parsed.rows.map(r => Object.assign(emptyRow(), r));
+  const proj = {
+    id: "p" + Date.now(),
+    name: parsed.name || 'Horario compartido',
+    rows: newRows,
+    colorOverrides: parsed.colorOverrides || {}
+  };
+  state.projects.push(proj);
+  state.activeId = proj.id;
+  saveState(); renderTabs(); renderRows(); generate();
+  history.replaceState({}, '', window.location.pathname + window.location.search);
+  showToast('Horario importado desde un enlace compartido.');
 }
 
 let storageWorks = true;
@@ -720,8 +798,8 @@ document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
   applySettings();
 });
 
-document.getElementById('openShare').addEventListener('click', showShareModal);
-document.getElementById('openImport').addEventListener('click', showImportModal);
+document.getElementById('openWebShare').addEventListener('click', showWebShareModal);
+document.getElementById('openShareSchedule').addEventListener('click', showShareModal);
 
 document.getElementById('openCustomize').addEventListener('click', ()=>{
   document.getElementById('drawer').classList.add('open');
@@ -775,6 +853,7 @@ try{
   renderTabs();
   renderRows();
   generate();
+  maybeImportSharedScheduleFromHash();
   if(!storageWorks){
     document.getElementById('storageNotice').style.display = 'block';
   }

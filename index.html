@@ -20,8 +20,7 @@
       <p class="sub">Arma tu horario ideal antes de matricularte: carga tus materias, compara secciones que se cruzan, personaliza los colores de cada clase y descarga tantas versiones como necesites.</p>
     </div>
     <div class="header-actions">
-      <button class="customize-btn" id="openShare">🔗 Compartir</button>
-      <button class="customize-btn" id="openImport">⬆ Importar</button>
+      <button class="customize-btn" id="openWebShare">🌐 Compartir web</button>
       <button class="customize-btn" id="openCustomize">⚙ Personalizar</button>
     </div>
   </header>
@@ -45,7 +44,7 @@
       </article>
       <article class="help-card">
         <h3>4. Comparte o descarga</h3>
-        <p>Guarda tu horario, compártelo por código o descárgalo como imagen cuando estés satisfecho con la distribución.</p>
+        <p>Usa “Compartir web” para invitar a otros a probar Mi Horario, usa “Compartir horario” para enviar tu combinación actual por enlace y descárgalo como imagen cuando estés satisfecho con la distribución.</p>
       </article>
     </div>
   </section>
@@ -86,9 +85,27 @@
     </div>
 
     <div class="actions" style="margin-top:18px; margin-bottom:0;">
+      <button class="ghost" id="openShareSchedule">🔗 Compartir horario</button>
       <button class="ghost" id="downloadBtn">↓ Descargar horario (imagen)</button>
     </div>
   </div>
+
+  <section class="panel feedback-panel" aria-label="Feedback y contacto">
+    <div class="panel-head">
+      <h2>Sugerencias y reportes</h2>
+    </div>
+    <div class="feedback-grid">
+
+      <article class="feedback-card">
+        <h3>Sugerencias y reportes</h3>
+        <p>¿Tienes una idea, una mejora o encontraste un error? Envíanos un mensaje rápido y lo revisamos.</p>
+        <div class="actions" style="margin-top:12px; margin-bottom:0;">
+          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Sugerencia%20Mi%20Horario&body=Hola%20José,%0A%0AQuería%20compartirte%20una%20sugerencia%20sobre%20Mi%20Horario:%0A" target="_blank" rel="noopener">💡 Enviar sugerencia</a>
+          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Bug%20Mi%20Horario&body=Hola%20José,%0A%0AEncontré%20este%20problema%20en%20Mi%20Horario:%0A" target="_blank" rel="noopener">🐞 Reportar bug</a>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <footer class="site-footer">
     <span class="credit">Hecho por <strong style="color:var(--ink); font-weight:600;">José Luciano Mejía Arias</strong> · v1.0.0</span>
