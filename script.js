@@ -755,57 +755,140 @@ function renderGrid(schedule, colorMap){
   const numDays = activeDays.length;
   const ps = getProjSettings();
   const startHour = ps.hourStart, endHour = ps.hourEnd;
-  const hourH = 36;
-  const totalH = (endHour-startHour)*hourH;
+  // Auto-extiende la ventana de horas para que ninguna clase quede cortada:
+  // las que empiezan antes de hourStart o terminan después de hourEnd se
+  // incluyen completas en la cuadrícula (evita bloques con top negativo
+  // que tapaban el encabezado del día o que se salían por debajo).
+  let winStart = startHour, winEnd = endHour;
+  schedule.forEach(sec=>{
+    const sh = toMin(sec.start)/60, eh = toMin(sec.end)/60;
+    if(sh < winStart) winStart = Math.floor(sh);
+    if(eh > winEnd) winEnd = Math.ceil(eh);
+  });
   const labelColW = ps.timeFormat==='12' ? 60 : 46;
   const gridWidth = 660;
   const colWidth = gridWidth/numDays;
   const dark = state.settings.dark;
-
-  let hourLabels = '';
-  for(let h=startHour; h<=endHour; h++){
-    hourLabels += `<div class="hour-label" style="top:${(h-startHour)*hourH-6}px; left:0;">${formatHourLabel(h)}</div>`;
-  }
-  let dayHeads = `<div style="display:grid; grid-template-columns:repeat(${numDays},1fr); margin-left:${labelColW}px; width:${gridWidth}px;">`;
-  activeDays.forEach(d=> dayHeads += `<div class="day-head">${d}</div>`);
-  dayHeads += `</div>`;
-
-  let dayCols = '';
-  activeDays.forEach((d,i)=>{
-    dayCols += `<div class="day-col" style="position:absolute; top:0; left:${labelColW + i*colWidth}px; width:${colWidth}px; height:${totalH}px;"></div>`;
-  });
-
   const dayIndex = {}; activeDays.forEach((d,i)=>dayIndex[d]=i);
-  let blocksHtml = '';
-  schedule.forEach(sec=>{
-    const top = (toMin(sec.start)/60 - startHour) * hourH;
-    const timeBasedHeight = Math.max((toMin(sec.end)-toMin(sec.start))/60*hourH, 22);
 
-    const timeLine = (sec.group && sec.group !== 'único')
-      ? `Grupo ${sec.group} · ${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}`
-      : `${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}`;
-
-    const left = labelColW + dayIndex[sec.day]*colWidth + 2;
-    const c = colorMap[sec.course];
-    const bg = dark ? c.dbg : c.bg;
-    const text = dark ? c.dtext : c.text;
-    blocksHtml += `<div class="block" style="top:${top}px; left:${left}px; width:${colWidth-6}px; height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
-      <div class="b-course">${sec.course}</div>
-      ${sec.group && sec.group !== 'único' ? `<div class="b-group">Grupo ${sec.group}</div>` : ''}
-      <div class="b-time">${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}</div>
-      ${sec.room ? `<div class="b-meta b-room">Aula ${sec.room}</div>` : ''}
-      ${sec.professor ? `<div class="b-meta b-prof">${sec.professor}</div>` : ''}
-    </div>`;
+  // Reparte en carriles los bloques que se cruzan el mismo día a la misma
+  // hora, para que queden lado a lado en vez de amontonarse uno encima de otro.
+  const byDay = {};
+  schedule.forEach(sec=>{ (byDay[sec.day] = byDay[sec.day] || []).push(sec); });
+  const laneMap = new Map();
+  Object.values(byDay).forEach(secs=>{
+    const n = secs.length;
+    const adj = Array.from({length:n}, ()=>[]);
+    for(let i=0;i<n;i++){
+      for(let j=i+1;j<n;j++){
+        if(overlaps(secs[i], secs[j])){ adj[i].push(j); adj[j].push(i); }
+      }
+    }
+    const cluster = new Array(n).fill(-1);
+    let cid = 0;
+    for(let i=0;i<n;i++){
+      if(cluster[i]!==-1) continue;
+      const stack=[i]; cluster[i]=cid;
+      while(stack.length){
+        const u=stack.pop();
+        adj[u].forEach(v=>{ if(cluster[v]===-1){ cluster[v]=cid; stack.push(v); } });
+      }
+      cid++;
+    }
+    for(let c=0;c<cid;c++){
+      const idxs = secs.map((_,i)=>i).filter(i=>cluster[i]===c);
+      const sorted = idxs.slice().sort((a,b)=> toMin(secs[a].start)-toMin(secs[b].start));
+      const laneEnds = [];
+      sorted.forEach(i=>{
+        const s = toMin(secs[i].start);
+        let lane = laneEnds.findIndex(end=>end<=s);
+        if(lane===-1){ lane = laneEnds.length; laneEnds.push(toMin(secs[i].end)); }
+        else laneEnds[lane] = toMin(secs[i].end);
+        laneMap.set(secs[i], { lane, lanes: laneEnds.length });
+      });
+    }
   });
 
-  view.innerHTML = `${dayHeads}
-    <div style="position:relative; height:${totalH}px; margin-top:6px;">
-      ${hourLabels}${dayCols}${blocksHtml}
-    </div>`;
+  // Escala base y máxima de px por hora. buildHtml(hourH) genera toda la
+  // cuadrícula con esa escala (posiciones, alturas y topes usan hourH).
+  const baseH = 42, maxH = 88;
+  function buildHtml(hourH){
+    const totalH = (winEnd-winStart)*hourH;
+    let hourLabels = '';
+    for(let h=winStart; h<=winEnd; h++){
+      hourLabels += `<div class="hour-label" style="top:${(h-winStart)*hourH-6}px; left:0;">${formatHourLabel(h)}</div>`;
+    }
+    let dayHeads = `<div style="display:grid; grid-template-columns:repeat(${numDays},1fr); margin-left:${labelColW}px; width:${gridWidth}px;">`;
+    activeDays.forEach(d=> dayHeads += `<div class="day-head">${d}</div>`);
+    dayHeads += `</div>`;
+
+    let dayCols = '';
+    activeDays.forEach((d,i)=>{
+      dayCols += `<div class="day-col" style="position:absolute; top:0; left:${labelColW + i*colWidth}px; width:${colWidth}px; height:${totalH}px;"></div>`;
+    });
+
+    let blocksHtml = '';
+    schedule.forEach(sec=>{
+      const span = Math.max((toMin(sec.end)-toMin(sec.start))/60, 0.5);
+      const top = (toMin(sec.start)/60 - winStart) * hourH;
+      const timeBasedHeight = Math.max(span*hourH, 22);
+
+      // Tope máximo hasta donde un bloque puede crecer: no más abajo que el
+      // inicio de la siguiente materia del mismo día (ni siquiera si está en
+      // otro carril) y nunca más abajo del final de la cuadrícula.
+      const sameDay = (byDay[sec.day] || []).filter(o => o !== sec && toMin(o.start) >= toMin(sec.start));
+      let capBottom = totalH;
+      if(sameDay.length){
+        const ns = Math.min(...sameDay.map(o => toMin(o.start)));
+        capBottom = Math.max(top + timeBasedHeight, (ns/60 - winStart) * hourH);
+      }
+
+      const colStart = labelColW + dayIndex[sec.day]*colWidth;
+      const li = laneMap.get(sec);
+      let left = colStart + 2;
+      let width = colWidth - 6;
+      if(li && li.lanes > 1){
+        const w = (colWidth - 6 - (li.lanes - 1)*2) / li.lanes;
+        left = colStart + 2 + li.lane*(w + 2);
+        width = w;
+      }
+      const grpLine = (sec.group && sec.group !== 'único') ? `Grupo ${sec.group}` : '';
+      const infoLines = '';
+      const c = colorMap[sec.course];
+      const bg = dark ? c.dbg : c.bg;
+      const text = dark ? c.dtext : c.text;
+      blocksHtml += `<div class="block" data-bottom="${capBottom}" data-span="${span}" style="top:${top}px; left:${left}px; width:${width}px; height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
+        <div class="b-course">${sec.course}</div>
+        <div class="b-info">
+          ${grpLine ? `<div class="b-grp">${grpLine}</div>` : ''}
+          <div class="b-time">${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}</div>
+          ${sec.room ? `<div class="b-room">Aula ${sec.room}</div>` : ''}
+          ${sec.professor ? `<div class="b-prof">${sec.professor}</div>` : ''}
+        </div>
+      </div>`;
+    });
+
+    return `${dayHeads}
+      <div style="position:relative; height:${totalH}px; margin-top:6px;">
+        ${hourLabels}${dayCols}${blocksHtml}
+      </div>`;
+  }
+
+  // Primer render para medir cuánto espacio necesita cada bloque con todo su
+  // contenido. Con eso se amplía la escala hasta que todo quepa (autoajuste
+  // de filas, como Excel), sin superar maxH.
+  view.innerHTML = buildHtml(baseH);
+  let maxRatio = baseH;
+  view.querySelectorAll('.block').forEach(b=>{
+    const span = parseFloat(b.dataset.span) || 1;
+    if(span > 0) maxRatio = Math.max(maxRatio, b.scrollHeight / span);
+  });
+  const finalH = Math.min(Math.max(baseH, Math.ceil(maxRatio)), maxH);
+  if(finalH !== baseH) view.innerHTML = buildHtml(finalH);
 
   // Second pass: measure each block's real content height (accounting for
   // course names that wrap to 2+ lines) and drop the least essential lines
-  // (profesor, then aula) if it doesn't actually fit in its time slot.
+  // (profesor, luego salón) if they don't actually fit in its time slot.
   view.querySelectorAll('.block').forEach(block=>{
     if(block.scrollHeight <= block.clientHeight) return;
     const prof = block.querySelector('.b-prof');
@@ -813,10 +896,22 @@ function renderGrid(schedule, colorMap){
     if(block.scrollHeight <= block.clientHeight) return;
     const room = block.querySelector('.b-room');
     if(room) room.remove();
-    if(block.scrollHeight > block.clientHeight){
-      // Even course + time alone don't fit (very short class, long name) —
-      // let the box grow rather than clip the time.
-      block.style.height = block.scrollHeight + 'px';
+    if(block.scrollHeight <= block.clientHeight) return;
+    // Aún no cabe: primero encoge el texto.
+    block.classList.add('tight');
+    if(block.scrollHeight <= block.clientHeight) return;
+    // Último recurso: deja crecer el bloque, pero solo hasta su tope para no
+    // tapar la materia que empieza justo después ni salirse del final del
+    // horario (el que terminaba a la hora límite se desbordaba y tapaba info).
+    const top = parseFloat(block.style.top);
+    const cap = parseFloat(block.dataset.bottom);
+    const maxH = (cap && !isNaN(cap)) ? cap - top : block.scrollHeight;
+    const need = block.scrollHeight;
+    if(need <= maxH){
+      block.style.height = need + 'px';
+      block.classList.remove('tight');
+    } else {
+      block.style.height = Math.max(maxH, block.clientHeight) + 'px';
     }
   });
 }
