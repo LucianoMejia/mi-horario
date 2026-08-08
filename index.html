@@ -21,7 +21,7 @@
     </div>
     <div class="header-actions">
       <button class="customize-btn" id="openWebShare">🌐 Compartir web</button>
-      <button class="customize-btn" id="openCustomize">⚙ Personalizar</button>
+      <button class="customize-btn" id="openCustomize">⚙ Accesibilidad</button>
     </div>
   </header>
 
@@ -32,19 +32,19 @@
     <div class="help-grid">
       <article class="help-card">
         <h3>1. Agrega tus materias</h3>
-        <p>Completa el nombre, grupo, día, hora de inicio y fin para cada clase. Puedes usar varias filas si una materia tiene más de una opción o si se reúne en distintos días.</p>
+        <p>Completa el nombre, grupo, día y horario de cada clase. Si una materia tiene varios grupos o se reúne otros días, agrega más filas.</p>
       </article>
       <article class="help-card">
-        <h3>2. Compara alternativas</h3>
-        <p>Si una materia tiene varios grupos, agrégalos todos. El sistema buscará combinaciones sin cruces y te mostrará la mejor opción disponible.</p>
+        <h3>2. Elige tu combinación</h3>
+        <p>El planificador arma todas las combinaciones sin cruces. Usa las flechas o el selector para revisar cada opción.</p>
       </article>
       <article class="help-card">
-        <h3>3. Revisa y personaliza</h3>
-        <p>Usa el selector de opciones para ver otras combinaciones, cambia colores y ajusta el rango de horas desde Personalizar.</p>
+        <h3>3. Personaliza a tu gusto</h3>
+        <p>En “Estilo del horario” ajusta horas, formato, sábado, fondo y colores (solo para la pestaña activa). En “⚙ Accesibilidad” cambia el tema, el tamaño de letra y más.</p>
       </article>
       <article class="help-card">
         <h3>4. Comparte o descarga</h3>
-        <p>Usa “Compartir web” para invitar a otros a probar Mi Horario, usa “Compartir horario” para enviar tu combinación actual por enlace y descárgalo como imagen cuando estés satisfecho con la distribución.</p>
+        <p>Comparte tu horario por enlace o descárgalo como imagen. Usa varias pestañas para probar distintas versiones del semestre.</p>
       </article>
     </div>
   </section>
@@ -65,6 +65,95 @@
         <div class="actions">
           <button class="ghost" id="addRow">+ Agregar sección</button>
           <button class="ghost" id="clearBtn">Limpiar materias</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Estilo del horario</h2>
+      <button class="collapse-btn" id="collapseStyleBtn" title="Mostrar u ocultar esta sección">
+        <span id="collapseStyleIcon">▾</span>
+      </button>
+    </div>
+    <div id="styleBody">
+      <div id="styleBodyInner">
+        <p class="hint">Estos ajustes se aplican solo al horario de la pestaña activa. Cambia de pestaña para personalizar cada horario de forma distinta.</p>
+        <div class="style-grid">
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label">Rango de horas visibles</span>
+            <div class="hour-row">
+              <select id="hourStart"></select>
+              <span style="color:var(--ink-soft); font-size:13px;">a</span>
+              <select id="hourEnd"></select>
+            </div>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label" style="margin-bottom:14px;">Formato 12 horas (AM/PM)</span>
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" id="timeFormatToggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label" style="margin-bottom:14px;">Incluir sábado</span>
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" id="saturdayToggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label">Colores por materia</span>
+            <p class="hint" style="margin:0;">Haz clic en el punto de color junto a cada materia (debajo del horario) para elegir su propio color.</p>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label">Imagen de fondo</span>
+            <label class="file-btn" for="bgImageInput">🖼 Subir imagen</label>
+            <input type="file" id="bgImageInput" accept="image/*" hidden>
+            <div class="bg-preview" id="bgPreview" hidden></div>
+            <button class="ghost" id="bgRemoveBtn" hidden style="margin-top:10px;">Eliminar imagen</button>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label">Estilo del fondo</span>
+            <select id="bgMode">
+              <option value="cover">Cubrir pantalla</option>
+              <option value="repeat">Repetir (mosaico)</option>
+              <option value="contain">Contener imagen completa</option>
+              <option value="blur">Cubrir + difuminado</option>
+              <option value="grayscale">Cubrir + escala de grises</option>
+              <option value="sepia">Cubrir + sepia</option>
+            </select>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label" style="margin-bottom:14px;">Oscurecer para leer mejor</span>
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" id="bgDarkenToggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field-group" style="margin-bottom:0;">
+            <span class="field-label">Transparencia del fondo</span>
+            <div class="bg-range-row">
+              <input type="range" id="bgOpacityRange" min="0" max="100" value="100">
+              <span class="bg-range-val" id="bgOpacityVal">100%</span>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -129,19 +218,20 @@
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
   <button class="drawer-close" id="closeDrawer">×</button>
-  <h3>Personalizar</h3>
-  <p class="hint">Ajusta la apariencia de la app y de tu horario. Se guarda automáticamente.</p>
+  <h3>Accesibilidad</h3>
+  <p class="hint">Ajustes de accesibilidad y apariencia de la app. Se aplican a toda la página y se guardan automáticamente.</p>
 
-  <p class="field-label" style="font-size:12px; margin-bottom:14px; opacity:.7;">— Apariencia de la app —</p>
+  <p class="field-label" style="font-size:12px; margin-bottom:14px; opacity:.7;">— Apariencia —</p>
 
   <div class="field-group">
     <span class="field-label">Color de acento</span>
     <div class="swatches" id="swatches"></div>
+    <p class="hint" style="margin:10px 0 0;">Se aplica a toda la app: botones, enlaces, selección y acentos.</p>
   </div>
 
   <div class="field-group">
     <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Modo oscuro</span>
+      <span class="field-label" style="margin-bottom:0;">Tema claro / oscuro</span>
       <label class="switch">
         <input type="checkbox" id="darkToggle">
         <span class="slider"></span>
@@ -149,22 +239,23 @@
     </div>
   </div>
 
-  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Este horario —</p>
+  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Lectura y comodidad —</p>
 
   <div class="field-group">
-    <span class="field-label">Rango de horas visibles</span>
-    <div class="hour-row">
-      <select id="hourStart"></select>
-      <span style="color:var(--ink-soft); font-size:13px;">a</span>
-      <select id="hourEnd"></select>
-    </div>
+    <span class="field-label">Tamaño de letra</span>
+    <select id="fontScaleSelect">
+      <option value="0.9">Pequeña</option>
+      <option value="1">Normal</option>
+      <option value="1.12">Grande</option>
+      <option value="1.25">Muy grande</option>
+    </select>
   </div>
 
   <div class="field-group">
     <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Formato 12 horas (AM/PM)</span>
+      <span class="field-label" style="margin-bottom:0;">Alto contraste</span>
       <label class="switch">
-        <input type="checkbox" id="timeFormatToggle">
+        <input type="checkbox" id="contrastToggle">
         <span class="slider"></span>
       </label>
     </div>
@@ -172,17 +263,12 @@
 
   <div class="field-group">
     <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Incluir sábado</span>
+      <span class="field-label" style="margin-bottom:0;">Reducir movimiento</span>
       <label class="switch">
-        <input type="checkbox" id="saturdayToggle">
+        <input type="checkbox" id="motionToggle">
         <span class="slider"></span>
       </label>
     </div>
-  </div>
-
-  <div class="field-group">
-    <span class="field-label">Colores por materia</span>
-    <p class="hint" style="margin:0;">Haz clic en el punto de color junto a cada materia (debajo del horario) para elegir su propio color.</p>
   </div>
 </div>
 

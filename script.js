@@ -286,7 +286,8 @@ function maybeImportSharedScheduleFromHash(){
     id: "p" + Date.now(),
     name: parsed.name || 'Horario compartido',
     rows: newRows,
-    colorOverrides: parsed.colorOverrides || {}
+    colorOverrides: parsed.colorOverrides || {},
+    settings: defaultProjSettings()
   };
   state.projects.push(proj);
   state.activeId = proj.id;
@@ -294,7 +295,7 @@ function maybeImportSharedScheduleFromHash(){
   const optIndexInit = (typeof parsed.opt === 'number') ? parsed.opt : 0;
   proj.selectedOption = Math.max(0, Math.floor(optIndexInit));
   try{ saveState(); }catch(e){}
-  renderTabs(); renderRows();
+  renderTabs(); renderRows(); applySettings(); buildDrawerControls();
   currentIdx = proj.selectedOption;
   generate();
   // Si hay un mapa de selección, intentar encontrar una combinación que lo cumpla y usarla
@@ -335,11 +336,14 @@ let state = loadState();
 let schedules = [];
 let currentIdx = 0;
 
+function defaultProjSettings(){
+  return { hourStart: 7, hourEnd: 21, timeFormat: '24', includeSaturday: true, bgImage: '', bgMode: 'cover', bgOpacity: 1, bgDarken: false };
+}
 function defaultState(){
   return {
-    projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{}, selectedOption: 0 }],
+    projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{}, selectedOption: 0, settings: defaultProjSettings() }],
     activeId: null,
-    settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24', materiasCollapsed:false }
+    settings: { accent: ACCENTS[0], dark:false, materiasCollapsed:false, styleCollapsed:false, fontScale:1, highContrast:false, reduceMotion:false }
   };
 }
 function emptyRow(){ return { course:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"", enabled:true }; }
@@ -356,6 +360,15 @@ function loadState(){
     parsed.projects.forEach(p=>{
       if(!p.colorOverrides) p.colorOverrides = {};
       if(typeof p.selectedOption !== 'number') p.selectedOption = 0;
+      // Migrar ajustes por horario que antes eran globales
+      const legacy = {};
+      ['hourStart','hourEnd','timeFormat','includeSaturday','bgImage','bgMode','bgOpacity','bgDarken'].forEach(k=>{
+        if(k in parsed.settings){
+          legacy[k] = parsed.settings[k];
+          delete parsed.settings[k];
+        }
+      });
+      p.settings = Object.assign({}, defaultProjSettings(), legacy, p.settings || {});
       (p.rows||[]).forEach(r=>{
         if(r.section && !r.group) r.group = r.section;
         delete r.section;
@@ -369,9 +382,14 @@ function saveState(){
   const ok = safeStorage.set(STORAGE_KEY, JSON.stringify(state));
   const notice = document.getElementById('storageNotice');
   if(notice) notice.style.display = ok ? 'none' : 'block';
+  return ok;
 }
 
 function getActiveProject(){ return state.projects.find(p=>p.id===state.activeId); }
+function getProjSettings(){
+  const p = getActiveProject();
+  return (p && p.settings) ? p.settings : state.settings;
+}
 
 /* ---------- Tabs ---------- */
 function renderTabs(){
@@ -389,6 +407,8 @@ function renderTabs(){
       saveState();
       renderTabs();
       renderRows();
+      applySettings();
+      buildDrawerControls();
       generate();
     });
     tab.addEventListener('dblclick', ()=>{
@@ -418,7 +438,7 @@ function renderTabs(){
           // Restaurar opción de la nueva pestaña activa
           const newActive = state.projects.find(pr=>pr.id===state.activeId);
           currentIdx = (newActive && typeof newActive.selectedOption === 'number') ? newActive.selectedOption : 0;
-          saveState(); renderTabs(); renderRows(); generate();
+          saveState(); renderTabs(); renderRows(); applySettings(); buildDrawerControls(); generate();
         }
       });
     });
@@ -431,10 +451,10 @@ function renderTabs(){
   addBtn.title = 'Crear nuevo horario';
   addBtn.addEventListener('click', ()=>{
     const n = state.projects.length + 1;
-    const proj = { id:"p"+Date.now(), name:`Horario ${n}`, rows:[emptyRow(), emptyRow()], selectedOption: 0 };
+    const proj = { id:"p"+Date.now(), name:`Horario ${n}`, rows:[emptyRow(), emptyRow()], selectedOption: 0, settings: defaultProjSettings() };
     state.projects.push(proj);
     state.activeId = proj.id;
-    saveState(); renderTabs(); renderRows(); generate();
+    saveState(); renderTabs(); renderRows(); applySettings(); buildDrawerControls(); generate();
   });
   bar.appendChild(addBtn);
 }
@@ -515,11 +535,16 @@ function overlaps(a,b){ return a.day===b.day && toMin(a.start)<toMin(b.end) && t
 function cartesian(arr){
   return arr.reduce((acc,cur)=>{ const res=[]; acc.forEach(a=>cur.forEach(c=>res.push([...a,c]))); return res; },[[]]);
 }
-function getActiveDays(){ return state.settings.includeSaturday ? DAYS : DAYS.slice(0,5); }
+function getActiveDays(){ return getProjSettings().includeSaturday ? DAYS : DAYS.slice(0,5); }
 function hexToRgb(hex){
   const h = hex.replace('#','');
   const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
   return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+function hexToRgba(hex, alpha){
+  const { r, g, b } = hexToRgb(hex);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r},${g},${b},${a})`;
 }
 function mixHex(hex, targetHex, weight){
   const a = hexToRgb(hex), b = hexToRgb(targetHex);
@@ -538,14 +563,14 @@ function buildColorFromHex(hex){
   };
 }
 function formatTimeStr(t){
-  if(state.settings.timeFormat !== '12') return t;
+  if(getProjSettings().timeFormat !== '12') return t;
   const [h,m] = t.split(':').map(Number);
   const period = h < 12 ? 'AM' : 'PM';
   let hh = h % 12; if(hh===0) hh = 12;
   return `${hh}:${String(m).padStart(2,'0')}${period}`;
 }
 function formatHourLabel(h){
-  if(state.settings.timeFormat !== '12') return `${h}:00`;
+  if(getProjSettings().timeFormat !== '12') return `${h}:00`;
   const period = h < 12 ? 'AM' : 'PM';
   let hh = h % 12; if(hh===0) hh = 12;
   return `${hh}\u00A0${period}`;
@@ -571,7 +596,7 @@ function generate(){
 
   if(data.length===0){
     summary.innerHTML = skippedDay
-      ? '<p class="empty-note">Tienes materias los sábados pero desactivaste ese día en Personalizar. Actívalo de nuevo o cambia el día de esas materias.</p>'
+      ? '<p class="empty-note">Tienes materias los sábados pero desactivaste ese día en Estilo del horario. Actívalo de nuevo o cambia el día de esas materias.</p>'
       : '<p class="empty-note">Agrega al menos una materia con su horario arriba, y aquí verás tu horario armado automáticamente.</p>';
     schedules = [];
     return;
@@ -728,10 +753,11 @@ function renderGrid(schedule, colorMap){
   const view = document.getElementById('scheduleView');
   const activeDays = getActiveDays();
   const numDays = activeDays.length;
-  const startHour = state.settings.hourStart, endHour = state.settings.hourEnd;
+  const ps = getProjSettings();
+  const startHour = ps.hourStart, endHour = ps.hourEnd;
   const hourH = 36;
   const totalH = (endHour-startHour)*hourH;
-  const labelColW = state.settings.timeFormat==='12' ? 60 : 46;
+  const labelColW = ps.timeFormat==='12' ? 60 : 46;
   const gridWidth = 660;
   const colWidth = gridWidth/numDays;
   const dark = state.settings.dark;
@@ -796,14 +822,115 @@ function renderGrid(schedule, colorMap){
 }
 
 /* ---------- Customize drawer ---------- */
+function bgStyleValues(mode){
+  const map = {
+    cover:      { size:'cover',     repeat:'no-repeat', pos:'center center', filter:'none' },
+    repeat:     { size:'auto',      repeat:'repeat',    pos:'0 0',           filter:'none' },
+    contain:    { size:'contain',   repeat:'no-repeat', pos:'center center', filter:'none' },
+    blur:       { size:'cover',     repeat:'no-repeat', pos:'center center', filter:'blur(6px)' },
+    grayscale:  { size:'cover',     repeat:'no-repeat', pos:'center center', filter:'grayscale(1)' },
+    sepia:      { size:'cover',     repeat:'no-repeat', pos:'center center', filter:'sepia(0.8)' }
+  };
+  return map[mode] || map.cover;
+}
+
 function applySettings(){
   document.documentElement.style.setProperty('--accent', state.settings.accent);
   document.body.classList.toggle('dark', state.settings.dark);
   document.getElementById('darkToggle').checked = state.settings.dark;
-  document.getElementById('saturdayToggle').checked = state.settings.includeSaturday;
-  document.getElementById('timeFormatToggle').checked = state.settings.timeFormat === '12';
+
+  const scale = (typeof state.settings.fontScale === 'number') ? state.settings.fontScale : 1;
+  document.body.style.zoom = scale;
+  const drawer = document.getElementById('drawer');
+  const overlay = document.getElementById('overlay');
+  if(drawer) drawer.style.zoom = 1 / scale;
+  if(overlay) overlay.style.zoom = 1 / scale;
+  document.getElementById('fontScaleSelect').value = String(scale);
+  document.body.classList.toggle('high-contrast', !!state.settings.highContrast);
+  document.getElementById('contrastToggle').checked = !!state.settings.highContrast;
+  document.body.classList.toggle('reduce-motion', !!state.settings.reduceMotion);
+  document.getElementById('motionToggle').checked = !!state.settings.reduceMotion;
+
+  const ps = getProjSettings();
+  document.getElementById('saturdayToggle').checked = ps.includeSaturday;
+  document.getElementById('timeFormatToggle').checked = ps.timeFormat === '12';
   document.getElementById('materiasBody').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
   document.getElementById('collapseMateriasBtn').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
+  document.getElementById('styleBody').classList.toggle('collapsed', !!state.settings.styleCollapsed);
+  document.getElementById('collapseStyleBtn').classList.toggle('collapsed', !!state.settings.styleCollapsed);
+
+  const img = ps.bgImage || '';
+  const gridWrap = document.querySelector('.grid-wrap');
+  if(gridWrap){
+    gridWrap.classList.toggle('has-bg', !!img);
+    if(img){
+      const panel = (getComputedStyle(document.body).getPropertyValue('--panel') || (state.settings.dark ? '#1E212C' : '#ffffff')).trim();
+      const opacity = (typeof ps.bgOpacity === 'number') ? ps.bgOpacity : 1;
+      const v = bgStyleValues(ps.bgMode);
+      gridWrap.style.setProperty('--bg-url', `url("${img}")`);
+      gridWrap.style.setProperty('--bg-size', v.size);
+      gridWrap.style.setProperty('--bg-repeat', v.repeat);
+      gridWrap.style.setProperty('--bg-position', v.pos);
+      gridWrap.style.setProperty('--bg-filter', v.filter);
+      gridWrap.style.setProperty('--bg-dark-overlay', ps.bgDarken ? 'rgba(0,0,0,0.55)' : 'transparent');
+      gridWrap.style.setProperty('--bg-panel-overlay', hexToRgba(panel, 1 - opacity));
+    } else {
+      ['--bg-url','--bg-size','--bg-repeat','--bg-position','--bg-filter','--bg-dark-overlay','--bg-panel-overlay'].forEach(k=> gridWrap.style.removeProperty(k));
+    }
+  }
+  syncBgControls();
+}
+
+function readImageFile(file, cb){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const MAX = 1600;
+      let width = img.width, height = img.height;
+      if(Math.max(width, height) > MAX){
+        const ratio = MAX / Math.max(width, height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      cb(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = ()=> showToast('No se pudo leer la imagen. Prueba con otro archivo.');
+    img.src = reader.result;
+  };
+  reader.onerror = ()=> showToast('No se pudo leer el archivo.');
+  reader.readAsDataURL(file);
+}
+
+function syncBgControls(){
+  const preview = document.getElementById('bgPreview');
+  const removeBtn = document.getElementById('bgRemoveBtn');
+  const mode = document.getElementById('bgMode');
+  const darken = document.getElementById('bgDarkenToggle');
+  const range = document.getElementById('bgOpacityRange');
+  const val = document.getElementById('bgOpacityVal');
+  const ps = getProjSettings();
+  const hasBg = !!ps.bgImage;
+  if(preview){
+    if(hasBg){
+      preview.style.backgroundImage = `url("${ps.bgImage}")`;
+      preview.hidden = false;
+    } else {
+      preview.hidden = true;
+    }
+  }
+  if(removeBtn) removeBtn.hidden = !hasBg;
+  if(mode) mode.value = ps.bgMode;
+  if(darken) darken.checked = !!ps.bgDarken;
+  if(range && val){
+    const pct = Math.round((typeof ps.bgOpacity === 'number' ? ps.bgOpacity : 1) * 100);
+    range.value = String(pct);
+    val.textContent = pct + '%';
+  }
 }
 
 function buildDrawerControls(){
@@ -823,17 +950,18 @@ function buildDrawerControls(){
 
   const hs = document.getElementById('hourStart');
   const he = document.getElementById('hourEnd');
+  const ps = getProjSettings();
   hs.innerHTML = ''; he.innerHTML = '';
-  for(let h=5; h<=12; h++) hs.innerHTML += `<option value="${h}" ${h===state.settings.hourStart?'selected':''}>${h}:00</option>`;
-  for(let h=15; h<=23; h++) he.innerHTML += `<option value="${h}" ${h===state.settings.hourEnd?'selected':''}>${h}:00</option>`;
-  hs.addEventListener('change', ()=>{
-    state.settings.hourStart = parseInt(hs.value);
+  for(let h=5; h<=12; h++) hs.innerHTML += `<option value="${h}" ${h===ps.hourStart?'selected':''}>${h}:00</option>`;
+  for(let h=15; h<=23; h++) he.innerHTML += `<option value="${h}" ${h===ps.hourEnd?'selected':''}>${h}:00</option>`;
+  hs.onchange = ()=>{
+    ps.hourStart = parseInt(hs.value);
     saveState(); generate();
-  });
-  he.addEventListener('change', ()=>{
-    state.settings.hourEnd = parseInt(he.value);
+  };
+  he.onchange = ()=>{
+    ps.hourEnd = parseInt(he.value);
     saveState(); generate();
-  });
+  };
 }
 
 document.getElementById('darkToggle').addEventListener('change', (e)=>{
@@ -842,14 +970,69 @@ document.getElementById('darkToggle').addEventListener('change', (e)=>{
   generate();
 });
 
+document.getElementById('fontScaleSelect').addEventListener('change', (e)=>{
+  state.settings.fontScale = parseFloat(e.target.value);
+  saveState(); applySettings();
+});
+
+document.getElementById('contrastToggle').addEventListener('change', (e)=>{
+  state.settings.highContrast = e.target.checked;
+  saveState(); applySettings();
+});
+
+document.getElementById('motionToggle').addEventListener('change', (e)=>{
+  state.settings.reduceMotion = e.target.checked;
+  saveState(); applySettings();
+});
+
 document.getElementById('saturdayToggle').addEventListener('change', (e)=>{
-  state.settings.includeSaturday = e.target.checked;
+  getProjSettings().includeSaturday = e.target.checked;
   saveState(); renderRows(); generate();
 });
 
 document.getElementById('timeFormatToggle').addEventListener('change', (e)=>{
-  state.settings.timeFormat = e.target.checked ? '12' : '24';
+  getProjSettings().timeFormat = e.target.checked ? '12' : '24';
   saveState(); generate();
+});
+
+document.getElementById('bgImageInput').addEventListener('change', ()=>{
+  const input = document.getElementById('bgImageInput');
+  const file = input.files && input.files[0];
+  input.value = '';
+  if(!file) return;
+  readImageFile(file, (dataUrl)=>{
+    getProjSettings().bgImage = dataUrl;
+    const saved = saveState();
+    if(!saved){
+      getProjSettings().bgImage = '';
+      showToast('La imagen es demasiado grande para guardarse en este navegador.');
+      syncBgControls();
+      return;
+    }
+    applySettings();
+    syncBgControls();
+  });
+});
+
+document.getElementById('bgRemoveBtn').addEventListener('click', ()=>{
+  getProjSettings().bgImage = '';
+  saveState(); applySettings(); syncBgControls();
+});
+
+document.getElementById('bgMode').addEventListener('change', (e)=>{
+  getProjSettings().bgMode = e.target.value;
+  saveState(); applySettings();
+});
+
+document.getElementById('bgDarkenToggle').addEventListener('change', (e)=>{
+  getProjSettings().bgDarken = e.target.checked;
+  saveState(); applySettings();
+});
+
+document.getElementById('bgOpacityRange').addEventListener('input', (e)=>{
+  getProjSettings().bgOpacity = parseInt(e.target.value, 10) / 100;
+  document.getElementById('bgOpacityVal').textContent = e.target.value + '%';
+  saveState(); applySettings();
 });
 
 document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
@@ -861,16 +1044,22 @@ document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
 document.getElementById('openWebShare').addEventListener('click', showWebShareModal);
 document.getElementById('openShareSchedule').addEventListener('click', showShareModal);
 
-document.getElementById('openCustomize').addEventListener('click', ()=>{
-  document.getElementById('drawer').classList.add('open');
-  document.getElementById('overlay').classList.add('open');
-});
 function closeDrawerFn(){
   document.getElementById('drawer').classList.remove('open');
   document.getElementById('overlay').classList.remove('open');
 }
+document.getElementById('openCustomize').addEventListener('click', ()=>{
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+});
 document.getElementById('closeDrawer').addEventListener('click', closeDrawerFn);
 document.getElementById('overlay').addEventListener('click', closeDrawerFn);
+
+document.getElementById('collapseStyleBtn').addEventListener('click', ()=>{
+  state.settings.styleCollapsed = !state.settings.styleCollapsed;
+  saveState();
+  applySettings();
+});
 
 /* ---------- Wire up main actions ---------- */
 document.getElementById('scheduleTitleInput').addEventListener('input', (e)=>{
