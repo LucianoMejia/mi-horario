@@ -179,7 +179,7 @@ function showWebShareModal(){
       <label style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:6px;">Enlace</label>
       <textarea id="webShareLink" readonly style="width:100%; height:70px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${shareUrl}</textarea>
       <div class="modal-actions" style="justify-content:center; flex-wrap:wrap; gap:10px;">
-        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="share-social">
           <button class="ghost" data-act="wa" title="WhatsApp" aria-label="Compartir por WhatsApp">
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:block;"><path d="M12.04 2C6.59 2 2.16 6.43 2.16 11.88c0 2.1.56 4.12 1.6 5.87L2 22l4.43-1.16a9.86 9.86 0 0 0 5.6 1.6c5.45 0 9.88-4.43 9.88-9.88S17.49 2 12.04 2Zm0 17.89a8.03 8.03 0 0 1-4.08-1.12l-.29-.17-2.63.69.7-2.56-.19-.28A8.03 8.03 0 1 1 12.04 19.89Zm4.47-6.01c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.41-.14-.01-.3-.01-.46-.01-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.35 1 2.51.13.16 1.72 2.63 4.17 3.68.58.25 1.04.4 1.4.51.58.18 1.11.16 1.53.1.47-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/></svg>
           </button>

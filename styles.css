@@ -372,6 +372,10 @@
     .modal-actions{flex-direction:column; align-items:stretch;}
     .modal-actions > div{width:100%; flex-direction:column; align-items:stretch;}
     .modal-actions button{width:100%; justify-content:center;}
+    .modal-actions .share-social{width:auto; flex-direction:row; align-items:center; justify-content:center;}
+    .modal-actions .share-social button{width:42px; height:42px; padding:0; flex:0 0 auto;}
+    .site-footer{flex-direction:column; align-items:center; text-align:center; gap:14px;}
+    .site-footer .socials{justify-content:center; flex-wrap:wrap;}
   }
   #errBanner{
     display:none; position:fixed; top:0; left:0; right:0; z-index:999;
@@ -400,6 +404,12 @@
   }
   .modal-actions{display:flex; justify-content:center; gap:8px; flex-wrap:wrap;}
   .modal-actions > div{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .share-social{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .share-social button{
+    display:flex; align-items:center; justify-content:center;
+    width:42px; height:42px; padding:0; flex:0 0 auto; border-radius:10px;
+  }
+  .share-social button svg{width:18px; height:18px;}
   .toast{
     position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(0);
     background:var(--ink); color:var(--paper); font-family:'Inter',sans-serif; font-size:13.5px;
