@@ -542,7 +542,7 @@ function formatTimeStr(t){
   const [h,m] = t.split(':').map(Number);
   const period = h < 12 ? 'AM' : 'PM';
   let hh = h % 12; if(hh===0) hh = 12;
-  return `${hh}:${String(m).padStart(2,'0')}\u00A0${period}`;
+  return `${hh}:${String(m).padStart(2,'0')}${period}`;
 }
 function formatHourLabel(h){
   if(state.settings.timeFormat !== '12') return `${h}:00`;
@@ -756,8 +756,8 @@ function renderGrid(schedule, colorMap){
     const timeBasedHeight = Math.max((toMin(sec.end)-toMin(sec.start))/60*hourH, 22);
 
     const timeLine = (sec.group && sec.group !== 'único')
-      ? `Grupo ${sec.group} · ${formatTimeStr(sec.start)}–${formatTimeStr(sec.end)}`
-      : `${formatTimeStr(sec.start)}–${formatTimeStr(sec.end)}`;
+      ? `Grupo ${sec.group} · ${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}`
+      : `${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}`;
 
     const left = labelColW + dayIndex[sec.day]*colWidth + 2;
     const c = colorMap[sec.course];
@@ -765,7 +765,8 @@ function renderGrid(schedule, colorMap){
     const text = dark ? c.dtext : c.text;
     blocksHtml += `<div class="block" style="top:${top}px; left:${left}px; width:${colWidth-6}px; height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
       <div class="b-course">${sec.course}</div>
-      <div class="b-meta">${timeLine}</div>
+      ${sec.group && sec.group !== 'único' ? `<div class="b-group">Grupo ${sec.group}</div>` : ''}
+      <div class="b-time">${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}</div>
       ${sec.room ? `<div class="b-meta b-room">Aula ${sec.room}</div>` : ''}
       ${sec.professor ? `<div class="b-meta b-prof">${sec.professor}</div>` : ''}
     </div>`;

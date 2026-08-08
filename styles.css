@@ -233,8 +233,10 @@
     box-sizing:border-box; border-left:3px solid transparent;
     box-shadow: 0 1px 4px rgba(0,0,0,.10);
   }
-  .block .b-course{font-weight:600; font-size:12px; line-height:1.25;}
+  .block .b-course{font-weight:600; font-size:12px; line-height:1.25; margin-bottom:8px; text-align:center;}
   .block .b-meta{font-family:'IBM Plex Mono',monospace; font-size:10.5px; margin-top:2px; opacity:.85;}
+  .block .b-group{font-family:'IBM Plex Mono',monospace; font-size:11px; margin-top:6px; color:inherit; opacity:0.95;}
+  .block .b-time{font-family:'IBM Plex Mono',monospace; font-size:10.5px; margin-top:4px; color:inherit; opacity:0.95;}
   .empty-note{font-size:14px; color:var(--ink-soft); padding:8px 2px;}
 
   /* Customize drawer */
