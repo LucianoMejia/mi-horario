@@ -336,8 +336,17 @@ let state = loadState();
 let schedules = [];
 let currentIdx = 0;
 
+function defaultTextStyles(){
+  return {
+    title:  { font:'serif', size:1, color:'' },
+    days:   { font:'mono',  size:1, color:'' },
+    hours:  { font:'mono',  size:1, color:'' },
+    legend: { font:'sans',  size:1, color:'' },
+    blocks: { font:'sans',  size:1 }
+  };
+}
 function defaultProjSettings(){
-  return { hourStart: 7, hourEnd: 21, timeFormat: '24', includeSaturday: true, bgImage: '', bgMode: 'cover', bgOpacity: 1, bgDarken: false };
+  return { hourStart: 7, hourEnd: 21, timeFormat: '24', includeSaturday: true, bgImage: '', bgMode: 'cover', bgOpacity: 1, bgDarken: false, text: defaultTextStyles() };
 }
 function defaultState(){
   return {
@@ -369,6 +378,22 @@ function loadState(){
         }
       });
       p.settings = Object.assign({}, defaultProjSettings(), legacy, p.settings || {});
+      // Estructura de letras por elemento (título, días, horas, leyenda, bloques)
+      const dtext = defaultTextStyles();
+      if(!p.settings.text || typeof p.settings.text !== 'object') p.settings.text = {};
+      Object.keys(dtext).forEach(k=>{ p.settings.text[k] = Object.assign({}, dtext[k], p.settings.text[k] || {}); });
+      // Migrar los ajustes de letras antiguos (globales) a cada elemento
+      if('scheduleFont' in p.settings || 'scheduleFontSize' in p.settings || 'scheduleColor' in p.settings){
+        const f = p.settings.scheduleFont || 'sans';
+        const s = (typeof p.settings.scheduleFontSize === 'number') ? p.settings.scheduleFontSize : 1;
+        const c = p.settings.scheduleColor || '';
+        Object.keys(dtext).forEach(k=>{
+          p.settings.text[k].font = f;
+          p.settings.text[k].size = s;
+          if('color' in p.settings.text[k]) p.settings.text[k].color = c;
+        });
+        delete p.settings.scheduleFont; delete p.settings.scheduleFontSize; delete p.settings.scheduleColor;
+      }
       (p.rows||[]).forEach(r=>{
         if(r.section && !r.group) r.group = r.section;
         delete r.section;
@@ -389,6 +414,12 @@ function getActiveProject(){ return state.projects.find(p=>p.id===state.activeId
 function getProjSettings(){
   const p = getActiveProject();
   return (p && p.settings) ? p.settings : state.settings;
+}
+function getTextStyle(k){
+  const ps = getProjSettings();
+  if(!ps.text) ps.text = defaultTextStyles();
+  if(!ps.text[k]) ps.text[k] = defaultTextStyles()[k] || {};
+  return ps.text[k];
 }
 
 /* ---------- Tabs ---------- */
@@ -972,6 +1003,27 @@ function applySettings(){
     } else {
       ['--bg-url','--bg-size','--bg-repeat','--bg-position','--bg-filter','--bg-dark-overlay','--bg-panel-overlay'].forEach(k=> gridWrap.style.removeProperty(k));
     }
+    const fontMap = { sans: "'Inter',sans-serif", mono: "'IBM Plex Mono',monospace", serif: "'Fraunces',serif" };
+    // Letras por elemento: cada uno con su propia tipografía, tamaño y color.
+    // Se aplican en #exportCapture (la tarjeta del horario que se descarga) para
+    // que solo cambien el título, días, horas, leyenda y bloques del horario,
+    // y no los campos de edición, el resumen ni la navegación.
+    const target = document.getElementById('exportCapture') || gridWrap;
+    const applyTextVars = (prefix, el)=>{
+      const f = (el && el.font) || 'sans';
+      const s = (el && typeof el.size === 'number') ? el.size : 1;
+      const c = (el && el.color) || '';
+      target.style.setProperty(prefix + '-font', fontMap[f] || fontMap.sans);
+      target.style.setProperty(prefix + '-size', String(s));
+      if(c) target.style.setProperty(prefix + '-color', c);
+      else target.style.removeProperty(prefix + '-color');
+    };
+    const t = ps.text || {};
+    applyTextVars('--title-text', t.title);
+    applyTextVars('--days-text', t.days);
+    applyTextVars('--hours-text', t.hours);
+    applyTextVars('--legend-text', t.legend);
+    applyTextVars('--blocks-text', t.blocks);
   }
   syncBgControls();
 }
@@ -1026,6 +1078,17 @@ function syncBgControls(){
     range.value = String(pct);
     val.textContent = pct + '%';
   }
+  const textDefaults = defaultTextStyles();
+  ['title','days','hours','legend','blocks'].forEach(k=>{
+    const cap = k.charAt(0).toUpperCase() + k.slice(1);
+    const el = (ps.text && ps.text[k]) || textDefaults[k] || {};
+    const fSel = document.getElementById('text' + cap + 'Font');
+    const sSel = document.getElementById('text' + cap + 'Size');
+    const cInput = document.getElementById('text' + cap + 'Color');
+    if(fSel) fSel.value = el.font || textDefaults[k].font;
+    if(sSel) sSel.value = String((typeof el.size === 'number') ? el.size : 1);
+    if(cInput) cInput.value = el.color || '#000000';
+  });
 }
 
 function buildDrawerControls(){
@@ -1128,6 +1191,30 @@ document.getElementById('bgOpacityRange').addEventListener('input', (e)=>{
   getProjSettings().bgOpacity = parseInt(e.target.value, 10) / 100;
   document.getElementById('bgOpacityVal').textContent = e.target.value + '%';
   saveState(); applySettings();
+});
+
+['title','days','hours','legend','blocks'].forEach(k=>{
+  const cap = k.charAt(0).toUpperCase() + k.slice(1);
+  const fSel = document.getElementById('text' + cap + 'Font');
+  const sSel = document.getElementById('text' + cap + 'Size');
+  const cInput = document.getElementById('text' + cap + 'Color');
+  const rBtn = document.getElementById('text' + cap + 'Reset');
+  if(fSel) fSel.addEventListener('change', (e)=>{
+    getTextStyle(k).font = e.target.value;
+    saveState(); applySettings(); generate();
+  });
+  if(sSel) sSel.addEventListener('change', (e)=>{
+    getTextStyle(k).size = parseFloat(e.target.value);
+    saveState(); applySettings(); generate();
+  });
+  if(cInput) cInput.addEventListener('input', (e)=>{
+    getTextStyle(k).color = e.target.value;
+    saveState(); applySettings();
+  });
+  if(rBtn) rBtn.addEventListener('click', ()=>{
+    getTextStyle(k).color = '';
+    saveState(); applySettings(); syncBgControls();
+  });
 });
 
 document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
