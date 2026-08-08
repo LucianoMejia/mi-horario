@@ -94,7 +94,9 @@ function encodePayload(obj){
       r.professor || '',
       r.enabled === false ? 0 : 1
     ].join(',')),
-    c: Object.entries(obj.colorOverrides || {}).filter(([, value]) => value).map(([key, value]) => `${key},${value}`)
+    c: Object.entries(obj.colorOverrides || {}).filter(([, value]) => value).map(([key, value]) => `${key},${value}`),
+    s: Object.entries(obj.s || obj.selection || {}).map(([course, choice]) => `${course},${choice}`),
+    o: (typeof obj.o === 'number' ? obj.o : (typeof obj.opt === 'number' ? obj.opt : 0))
   });
   const encoded = btoa(unescape(encodeURIComponent(compact)));
   return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
@@ -126,7 +128,16 @@ function decodePayloadCode(code){
           const [key, value] = entry.split(',');
           if(key) acc[key] = value;
           return acc;
-        }, {})
+        }, {}),
+        selection: (parsed.s || []).reduce((acc, entry) => {
+          const idx = entry.indexOf(',');
+          if(idx === -1) return acc;
+          const course = entry.slice(0, idx);
+          const choice = entry.slice(idx + 1);
+          if(course) acc[course] = choice;
+          return acc;
+        }, {}),
+        opt: (typeof parsed.o === 'number') ? parsed.o : 0
       };
     }
   }catch(e){}
@@ -225,7 +236,16 @@ function showWebShareModal(){
 
 function showShareModal(){
   const proj = getActiveProject();
-  const payloadObj = { v:1, name: proj.name, rows: proj.rows, colorOverrides: proj.colorOverrides || {} };
+  // Selección por curso: course -> group (o 'único') para preservar la opción elegida
+  const selectionMap = {};
+  if(Array.isArray(schedules) && schedules.length > 0){
+    const chosen = schedules[Math.max(0, Math.min(currentIdx, schedules.length - 1))].rows;
+    chosen.forEach(r => { selectionMap[r.course] = (r.group && r.group !== 'único') ? r.group : (r.group || 'único'); });
+  }
+  // Guardar la opción actual en el proyecto antes de compartir
+  // No modificar la opción guardada del proyecto al compartir.
+  // Enlaces compartidos siempre abrirán en la primera opción (o: 0).
+  const payloadObj = { v:1, name: proj.name, rows: proj.rows, colorOverrides: proj.colorOverrides || {}, s: selectionMap, o: 0 };
   const code = encodePayload(payloadObj);
 
   const shareUrl = getShareUrl(code);
@@ -270,7 +290,31 @@ function maybeImportSharedScheduleFromHash(){
   };
   state.projects.push(proj);
   state.activeId = proj.id;
-  saveState(); renderTabs(); renderRows(); generate();
+  // Inicializar selectedOption del proyecto importado con el índice enviado antes de generar
+  const optIndexInit = (typeof parsed.opt === 'number') ? parsed.opt : 0;
+  proj.selectedOption = Math.max(0, Math.floor(optIndexInit));
+  try{ saveState(); }catch(e){}
+  renderTabs(); renderRows();
+  currentIdx = proj.selectedOption;
+  generate();
+  // Si hay un mapa de selección, intentar encontrar una combinación que lo cumpla y usarla
+  if(parsed && parsed.selection && typeof parsed.selection === 'object'){
+    const sel = parsed.selection;
+    let found = -1;
+    for(let i=0;i<schedules.length;i++){
+      const sch = schedules[i].rows;
+      let ok = true;
+      for(const course in sel){
+        const choice = sel[course];
+        const match = sch.some(r => r.course === course && ((r.group && r.group !== 'único' ? r.group : (r.group||'único')) === choice));
+        if(!match){ ok = false; break; }
+      }
+      if(ok){ found = i; break; }
+    }
+    if(found >= 0){ currentIdx = found; generate(); }
+  }
+  // Guardar la opción seleccionada en el proyecto importado
+  try{ proj.selectedOption = currentIdx; saveState(); }catch(e){}
   history.replaceState({}, '', window.location.pathname + window.location.search);
   showToast('Horario importado desde un enlace compartido.');
 }
@@ -293,7 +337,7 @@ let currentIdx = 0;
 
 function defaultState(){
   return {
-    projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{} }],
+    projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{}, selectedOption: 0 }],
     activeId: null,
     settings: { accent: ACCENTS[0], hourStart: 7, hourEnd: 21, dark:false, includeSaturday:true, timeFormat:'24', materiasCollapsed:false }
   };
@@ -311,6 +355,7 @@ function loadState(){
     parsed.settings = Object.assign({}, defaults.settings, parsed.settings || {});
     parsed.projects.forEach(p=>{
       if(!p.colorOverrides) p.colorOverrides = {};
+      if(typeof p.selectedOption !== 'number') p.selectedOption = 0;
       (p.rows||[]).forEach(r=>{
         if(r.section && !r.group) r.group = r.section;
         delete r.section;
@@ -339,6 +384,8 @@ function renderTabs(){
     tab.addEventListener('click', (e)=>{
       if(e.target.classList.contains('tab-x')) return;
       state.activeId = p.id;
+      // Restaurar la opción seleccionada de esta pestaña
+      currentIdx = (typeof p.selectedOption === 'number') ? p.selectedOption : 0;
       saveState();
       renderTabs();
       renderRows();
@@ -368,6 +415,9 @@ function renderTabs(){
         onConfirm: ()=>{
           state.projects = state.projects.filter(pr=>pr.id!==p.id);
           if(state.activeId===p.id) state.activeId = state.projects[0].id;
+          // Restaurar opción de la nueva pestaña activa
+          const newActive = state.projects.find(pr=>pr.id===state.activeId);
+          currentIdx = (newActive && typeof newActive.selectedOption === 'number') ? newActive.selectedOption : 0;
           saveState(); renderTabs(); renderRows(); generate();
         }
       });
@@ -381,7 +431,7 @@ function renderTabs(){
   addBtn.title = 'Crear nuevo horario';
   addBtn.addEventListener('click', ()=>{
     const n = state.projects.length + 1;
-    const proj = { id:"p"+Date.now(), name:`Horario ${n}`, rows:[emptyRow(), emptyRow()] };
+    const proj = { id:"p"+Date.now(), name:`Horario ${n}`, rows:[emptyRow(), emptyRow()], selectedOption: 0 };
     state.projects.push(proj);
     state.activeId = proj.id;
     saveState(); renderTabs(); renderRows(); generate();
@@ -560,7 +610,10 @@ function generate(){
 
   valid.sort((a,b)=> b.includedCourses - a.includedCourses || b.rows.length - a.rows.length);
   schedules = valid;
-  if(currentIdx >= schedules.length) currentIdx = 0;
+  if(currentIdx >= schedules.length){
+    const saved = (typeof proj.selectedOption === 'number') ? proj.selectedOption : 0;
+    currentIdx = (typeof saved === 'number' && saved < schedules.length) ? saved : 0;
+  }
 
   proj.colorOverrides = proj.colorOverrides || {};
   const colorMap = {};
@@ -623,7 +676,13 @@ function generate(){
     const prevBtn = document.createElement('button');
     prevBtn.className = 'nav-btn prev';
     prevBtn.textContent = '← Anterior';
-    prevBtn.addEventListener('click', ()=>{ if(currentIdx>0){ currentIdx -= 1; render(); }});
+    prevBtn.addEventListener('click', ()=>{
+      if(currentIdx>0){
+        currentIdx -= 1;
+        render();
+        try{ const p = getActiveProject(); p.selectedOption = currentIdx; saveState(); }catch(e){}
+      }
+    });
 
     const select = document.createElement('select');
     select.className = 'option-select';
@@ -633,12 +692,12 @@ function generate(){
       opt.textContent = `Opción ${i+1}`;
       select.appendChild(opt);
     }
-    select.addEventListener('change', ()=>{ currentIdx = parseInt(select.value, 10) - 1; render(); });
+    select.addEventListener('change', ()=>{ currentIdx = parseInt(select.value, 10) - 1; render(); try{ const p = getActiveProject(); p.selectedOption = currentIdx; saveState(); }catch(e){} });
 
     const nextBtn = document.createElement('button');
     nextBtn.className = 'nav-btn next';
     nextBtn.textContent = 'Siguiente →';
-    nextBtn.addEventListener('click', ()=>{ if(currentIdx < schedules.length-1){ currentIdx += 1; render(); }});
+    nextBtn.addEventListener('click', ()=>{ if(currentIdx < schedules.length-1){ currentIdx += 1; render(); try{ const p = getActiveProject(); p.selectedOption = currentIdx; saveState(); }catch(e){} }});
 
     const label = document.createElement('span');
     label.className = 'option-label';
@@ -852,6 +911,8 @@ try{
   buildDrawerControls();
   renderTabs();
   renderRows();
+  // Restaurar la opción guardada del proyecto activo antes de generar
+  try{ const proj0 = getActiveProject(); currentIdx = (proj0 && typeof proj0.selectedOption === 'number') ? proj0.selectedOption : 0; }catch(e){}
   generate();
   maybeImportSharedScheduleFromHash();
   if(!storageWorks){
