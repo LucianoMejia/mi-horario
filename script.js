@@ -456,21 +456,31 @@ function generate(){
     byCourse[r.course][r.group].push(r);
   });
   const courseNames = Object.keys(byCourse);
-  const optionsPerCourse = courseNames.map(name=>Object.values(byCourse[name]));
+  const optionsPerCourse = courseNames.map(name=>{
+    const bundles = Object.values(byCourse[name]).map(groupRows=>groupRows.slice());
+    return [
+      { skipped:true, course:name, rows:[] },
+      ...bundles.map(rows=>({ course:name, rows }))
+    ];
+  });
   const combos = cartesian(optionsPerCourse);
 
   const valid = [];
   combos.forEach(combo=>{
-    const flat = combo.flat();
+    const selected = combo.filter(choice => !choice.skipped);
+    const flat = selected.flatMap(choice => choice.rows);
+    if(selected.length===0) return;
+
     let ok = true;
     for(let i=0;i<flat.length && ok;i++){
       for(let j=i+1;j<flat.length;j++){
         if(flat[i].course !== flat[j].course && overlaps(flat[i], flat[j])){ ok=false; break; }
       }
     }
-    if(ok) valid.push(flat);
+    if(ok) valid.push({ rows: flat, includedCourses: selected.length });
   });
 
+  valid.sort((a,b)=> b.includedCourses - a.includedCourses || b.rows.length - a.rows.length);
   schedules = valid;
   if(currentIdx >= schedules.length) currentIdx = 0;
 
@@ -509,7 +519,9 @@ function generate(){
     legend.appendChild(item);
   });
 
-  const hasAlternatives = optionsPerCourse.some(opts => opts.length > 1);
+  const hasAlternatives = courseNames.some(name => Object.keys(byCourse[name]).length > 1);
+  const bestSchedule = schedules[0];
+  const skippedCourses = bestSchedule ? courseNames.length - bestSchedule.includedCourses : 0;
 
   if(schedules.length===0){
     summary.innerHTML = `<p class="empty-note">Alguna de tus materias se cruza en horario con otra y no es posible armar un horario sin choques. Revisa los días y horas, o agrega una sección alternativa para la materia que se cruza.</p>`;
@@ -518,23 +530,59 @@ function generate(){
 
   if(schedules.length===1){
     summary.textContent = hasAlternatives
-      ? 'Solo hay una forma de combinar tus materias sin que se crucen.'
+      ? (skippedCourses > 0
+        ? 'Se encontró una combinación viable al elegir la alternativa que mejor encaja y dejar fuera las materias que no pudieron combinarse.'
+        : 'Solo hay una forma de combinar tus materias sin que se crucen.')
       : 'Este es el horario con las materias que agregaste.';
   } else {
-    summary.textContent = `Agregaste grupos alternativos, así que hay ${schedules.length} formas distintas de armar tu horario sin cruces. Elige una para verla:`;
-    schedules.forEach((_, i)=>{
-      const pill = document.createElement('button');
-      pill.className = 'option-pill' + (i===currentIdx ? ' active' : '');
-      pill.textContent = i+1;
-      pill.title = `Opción ${i+1}`;
-      pill.addEventListener('click', ()=>{ currentIdx = i; render(); });
-      nav.appendChild(pill);
-    });
+    summary.textContent = hasAlternatives
+      ? `Hay ${schedules.length} combinaciones viables. La mejor opción se muestra primero; usa los controles para revisar otra.`
+      : `Agregaste grupos alternativos, así que hay ${schedules.length} formas distintas de armar tu horario sin cruces. Elige una para verla:`;
+
+    const optionNav = document.createElement('div');
+    optionNav.className = 'option-nav';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'nav-btn prev';
+    prevBtn.textContent = '← Anterior';
+    prevBtn.addEventListener('click', ()=>{ if(currentIdx>0){ currentIdx -= 1; render(); }});
+
+    const select = document.createElement('select');
+    select.className = 'option-select';
+    for(let i=0;i<schedules.length;i++){
+      const opt = document.createElement('option');
+      opt.value = String(i+1);
+      opt.textContent = `Opción ${i+1}`;
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', ()=>{ currentIdx = parseInt(select.value, 10) - 1; render(); });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'nav-btn next';
+    nextBtn.textContent = 'Siguiente →';
+    nextBtn.addEventListener('click', ()=>{ if(currentIdx < schedules.length-1){ currentIdx += 1; render(); }});
+
+    const label = document.createElement('span');
+    label.className = 'option-label';
+    label.textContent = `Opción ${currentIdx+1} de ${schedules.length}`;
+
+    optionNav.appendChild(prevBtn);
+    optionNav.appendChild(select);
+    optionNav.appendChild(nextBtn);
+    optionNav.appendChild(label);
+    nav.appendChild(optionNav);
   }
 
   function render(){
-    nav.querySelectorAll('.option-pill').forEach((p,i)=> p.classList.toggle('active', i===currentIdx));
-    renderGrid(schedules[currentIdx], colorMap);
+    const select = nav.querySelector('.option-select');
+    const prevBtn = nav.querySelector('.nav-btn.prev');
+    const nextBtn = nav.querySelector('.nav-btn.next');
+    const label = nav.querySelector('.option-label');
+    if(select){ select.value = String(currentIdx + 1); }
+    if(prevBtn){ prevBtn.disabled = currentIdx === 0; }
+    if(nextBtn){ nextBtn.disabled = currentIdx >= schedules.length - 1; }
+    if(label){ label.textContent = `Opción ${currentIdx + 1} de ${schedules.length}`; }
+    renderGrid(schedules[currentIdx].rows, colorMap);
   }
   render();
 }
