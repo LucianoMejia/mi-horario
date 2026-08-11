@@ -1,4 +1,4 @@
-const DAYS = ["Lun","Mar","Mié","Jue","Vie","Sáb"];
+const DAYS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const COLORS = [
   {bg:"#E7EAF5", border:"#3B4B8C", text:"#2B3266", dbg:"#262B45", dtext:"#C7CDEE"},
   {bg:"#E3F1EA", border:"#2E7D5B", text:"#1E5A40", dbg:"#1C3229", dtext:"#B7E4CC"},
@@ -346,7 +346,7 @@ function defaultTextStyles(){
   };
 }
 function defaultProjSettings(){
-  return { hourStart: 7, hourEnd: 21, timeFormat: '24', includeSaturday: true, bgImage: '', bgMode: 'cover', bgOpacity: 1, bgDarken: false, text: defaultTextStyles() };
+  return { hourStart: 7, hourEnd: 21, timeFormat: '24', includeWeekend: true, bgImage: '', bgMode: 'cover', bgOpacity: 1, bgDarken: false, text: defaultTextStyles() };
 }
 function defaultState(){
   return {
@@ -371,13 +371,17 @@ function loadState(){
       if(typeof p.selectedOption !== 'number') p.selectedOption = 0;
       // Migrar ajustes por horario que antes eran globales
       const legacy = {};
-      ['hourStart','hourEnd','timeFormat','includeSaturday','bgImage','bgMode','bgOpacity','bgDarken'].forEach(k=>{
+      ['hourStart','hourEnd','timeFormat','includeSaturday','includeWeekend','bgImage','bgMode','bgOpacity','bgDarken'].forEach(k=>{
         if(k in parsed.settings){
           legacy[k] = parsed.settings[k];
           delete parsed.settings[k];
         }
       });
       p.settings = Object.assign({}, defaultProjSettings(), legacy, p.settings || {});
+      if(typeof p.settings.includeWeekend !== 'boolean' && typeof p.settings.includeSaturday === 'boolean'){
+        p.settings.includeWeekend = p.settings.includeSaturday;
+      }
+      delete p.settings.includeSaturday;
       // Estructura de letras por elemento (título, días, horas, leyenda, bloques)
       const dtext = defaultTextStyles();
       if(!p.settings.text || typeof p.settings.text !== 'object') p.settings.text = {};
@@ -566,7 +570,7 @@ function overlaps(a,b){ return a.day===b.day && toMin(a.start)<toMin(b.end) && t
 function cartesian(arr){
   return arr.reduce((acc,cur)=>{ const res=[]; acc.forEach(a=>cur.forEach(c=>res.push([...a,c]))); return res; },[[]]);
 }
-function getActiveDays(){ return getProjSettings().includeSaturday ? DAYS : DAYS.slice(0,5); }
+function getActiveDays(){ return getProjSettings().includeWeekend ? DAYS : DAYS.slice(0,5); }
 function hexToRgb(hex){
   const h = hex.replace('#','');
   const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
@@ -627,7 +631,7 @@ function generate(){
 
   if(data.length===0){
     summary.innerHTML = skippedDay
-      ? '<p class="empty-note">Tienes materias los sábados pero desactivaste ese día en Estilo del horario. Actívalo de nuevo o cambia el día de esas materias.</p>'
+      ? '<p class="empty-note">Tienes materias de fin de semana pero lo desactivaste en Estilo del horario. Actívalo de nuevo o cambia el día de esas materias.</p>'
       : '<p class="empty-note">Agrega al menos una materia con su horario arriba, y aquí verás tu horario armado automáticamente.</p>';
     schedules = [];
     return;
@@ -978,7 +982,7 @@ function applySettings(){
   document.getElementById('motionToggle').checked = !!state.settings.reduceMotion;
 
   const ps = getProjSettings();
-  document.getElementById('saturdayToggle').checked = ps.includeSaturday;
+  document.getElementById('weekendToggle').checked = !!ps.includeWeekend;
   document.getElementById('timeFormatToggle').checked = ps.timeFormat === '12';
   document.getElementById('materiasBody').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
   document.getElementById('collapseMateriasBtn').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
@@ -1143,8 +1147,8 @@ document.getElementById('motionToggle').addEventListener('change', (e)=>{
   saveState(); applySettings();
 });
 
-document.getElementById('saturdayToggle').addEventListener('change', (e)=>{
-  getProjSettings().includeSaturday = e.target.checked;
+document.getElementById('weekendToggle').addEventListener('change', (e)=>{
+  getProjSettings().includeWeekend = e.target.checked;
   saveState(); renderRows(); generate();
 });
 
