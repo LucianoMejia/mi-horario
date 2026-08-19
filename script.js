@@ -1241,6 +1241,17 @@ document.getElementById('openCustomize').addEventListener('click', ()=>{
 document.getElementById('closeDrawer').addEventListener('click', closeDrawerFn);
 document.getElementById('overlay').addEventListener('click', closeDrawerFn);
 
+function closeHelpDrawerFn(){
+  document.getElementById('helpDrawer').classList.remove('open');
+  document.getElementById('helpOverlay').classList.remove('open');
+}
+document.getElementById('openHelp').addEventListener('click', ()=>{
+  document.getElementById('helpDrawer').classList.add('open');
+  document.getElementById('helpOverlay').classList.add('open');
+});
+document.getElementById('closeHelpDrawer').addEventListener('click', closeHelpDrawerFn);
+document.getElementById('helpOverlay').addEventListener('click', closeHelpDrawerFn);
+
 document.getElementById('collapseStyleBtn').addEventListener('click', ()=>{
   state.settings.styleCollapsed = !state.settings.styleCollapsed;
   saveState();
