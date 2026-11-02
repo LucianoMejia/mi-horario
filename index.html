@@ -2,37 +2,57 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mi Horario</title>
+<meta name="description" content="Arma tu horario ideal antes de matricularte: carga tus materias, compara secciones que se cruzan y descarga tantas versiones como necesites.">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Horario">
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Inter es el respaldo de SF Pro fuera de Apple. Fraunces e IBM Plex Mono solo se usan si eliges esas tipografías para el horario. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="errBanner"></div>
-<div class="bg-grid"></div>
-<div class="wrap">
-  <div id="storageNotice">⚠ Este navegador no permite guardar automáticamente (modo privado, archivo abierto localmente, u otra restricción). El planificador sigue funcionando, pero tus horarios se perderán al recargar la página.</div>
-  <header>
-    <div>
-      <h1>Mi Horario</h1>
-      <p class="sub">Arma tu horario ideal antes de matricularte: carga tus materias, compara secciones que se cruzan, personaliza los colores de cada clase y descarga tantas versiones como necesites.</p>
-    </div>
+<div id="errBanner" role="alert"></div>
+
+<nav class="topbar">
+  <div class="topbar-inner">
+    <span class="topbar-title">Mi Horario</span>
     <div class="header-actions">
-      <button class="customize-btn" id="openWebShare">🌐 Compartir web</button>
-      <button class="customize-btn" id="openCustomize">⚙ Accesibilidad</button>
-      <button class="customize-btn" id="openHelp">❓ Ayuda</button>
+      <button class="customize-btn" id="openWebShare" type="button" aria-label="Compartir la web">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg>
+        <span class="btn-label">Compartir</span>
+      </button>
+      <button class="customize-btn" id="openCustomize" type="button" aria-label="Accesibilidad">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+        <span class="btn-label">Accesibilidad</span>
+      </button>
+      <button class="customize-btn" id="openHelp" type="button" aria-label="Ayuda">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4"/><path d="M12 16.9v.1"/></svg>
+        <span class="btn-label">Ayuda</span>
+      </button>
     </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div id="storageNotice" role="status">Este navegador no permite guardar automáticamente (modo privado, archivo abierto localmente u otra restricción). El planificador funciona igual, pero tus horarios se perderán al recargar la página.</div>
+  <header class="hero">
+    <h1>Mi Horario</h1>
+    <p class="sub">Arma tu horario ideal antes de matricularte: carga tus materias, compara secciones que se cruzan, personaliza los colores de cada clase y descarga tantas versiones como necesites.</p>
   </header>
 
-  <div class="tabs-bar" id="tabsBar"></div>
+  <div class="tabs-bar" id="tabsBar" role="tablist" aria-label="Tus horarios"></div>
 
   <div class="panel">
     <div class="panel-head">
       <h2>Materias y secciones</h2>
-      <button class="collapse-btn" id="collapseMateriasBtn" title="Mostrar u ocultar esta sección">
-        <span id="collapseMateriasIcon">▾</span>
+      <button class="collapse-btn" id="collapseMateriasBtn" type="button" aria-controls="materiasBody" aria-label="Mostrar u ocultar materias">
+        <span id="collapseMateriasIcon" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
       </button>
     </div>
     <div id="materiasBody">
@@ -40,8 +60,8 @@
         <p class="hint">Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. Si una materia tiene varios grupos posibles (ej. "Grupo 1" reunido martes y jueves, "Grupo 2" reunido martes y viernes), agrégalos todos con su propio número de grupo: el planificador armará automáticamente las combinaciones posibles entre todos los grupos de todas tus materias, sin cruces de horario. Usa el interruptor de la izquierda de cada fila para ocultar temporalmente una materia y ver cómo queda el horario sin ella, sin necesidad de borrarla.</p>
         <div id="rows"></div>
         <div class="actions">
-          <button class="ghost" id="addRow">+ Agregar sección</button>
-          <button class="ghost" id="clearBtn">Limpiar materias</button>
+          <button class="ghost" id="addRow" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Agregar sección</button>
+          <button class="ghost danger-text" id="clearBtn" type="button">Limpiar materias</button>
         </div>
       </div>
     </div>
@@ -50,8 +70,8 @@
   <div class="panel">
     <div class="panel-head">
       <h2>Estilo del horario</h2>
-      <button class="collapse-btn" id="collapseStyleBtn" title="Mostrar u ocultar esta sección">
-        <span id="collapseStyleIcon">▾</span>
+      <button class="collapse-btn" id="collapseStyleBtn" type="button" aria-controls="styleBody" aria-label="Mostrar u ocultar estilo">
+        <span id="collapseStyleIcon" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
       </button>
     </div>
     <div id="styleBody">
@@ -59,17 +79,17 @@
         <p class="hint">Estos ajustes se aplican solo al horario de la pestaña activa. Cambia de pestaña para personalizar cada horario de forma distinta.</p>
         <div class="style-grid">
 
-          <div class="field-group" style="margin-bottom:0;">
+          <div class="field-group">
             <span class="field-label">Rango de horas visibles</span>
             <div class="hour-row">
               <select id="hourStart"></select>
-              <span style="color:var(--ink-soft); font-size:13px;">a</span>
+              <span class="hour-sep">a</span>
               <select id="hourEnd"></select>
             </div>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
-            <span class="field-label" style="margin-bottom:14px;">Formato 12 horas (AM/PM)</span>
+          <div class="field-group">
+            <span class="field-label">Formato 12 horas (AM/PM)</span>
             <div class="toggle-row">
               <label class="switch">
                 <input type="checkbox" id="timeFormatToggle">
@@ -78,8 +98,8 @@
             </div>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
-            <span class="field-label" style="margin-bottom:14px;">Incluir fines de semana</span>
+          <div class="field-group">
+            <span class="field-label">Incluir fines de semana</span>
             <div class="toggle-row">
               <label class="switch">
                 <input type="checkbox" id="weekendToggle">
@@ -88,20 +108,20 @@
             </div>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
+          <div class="field-group">
             <span class="field-label">Colores por materia</span>
             <p class="hint" style="margin:0;">Haz clic en el punto de color junto a cada materia (debajo del horario) para elegir su propio color.</p>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
+          <div class="field-group">
             <span class="field-label">Imagen de fondo</span>
-            <label class="file-btn" for="bgImageInput">🖼 Subir imagen</label>
+            <label class="file-btn" for="bgImageInput"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/></svg>Subir imagen</label>
             <input type="file" id="bgImageInput" accept="image/*" hidden>
             <div class="bg-preview" id="bgPreview" hidden></div>
-            <button class="ghost" id="bgRemoveBtn" hidden style="margin-top:10px;">Eliminar imagen</button>
+            <button class="ghost danger-text" id="bgRemoveBtn" type="button" hidden>Quitar imagen</button>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
+          <div class="field-group">
             <span class="field-label">Estilo del fondo</span>
             <select id="bgMode">
               <option value="cover">Cubrir pantalla</option>
@@ -113,8 +133,8 @@
             </select>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
-            <span class="field-label" style="margin-bottom:14px;">Oscurecer para leer mejor</span>
+          <div class="field-group">
+            <span class="field-label">Oscurecer para leer mejor</span>
             <div class="toggle-row">
               <label class="switch">
                 <input type="checkbox" id="bgDarkenToggle">
@@ -123,7 +143,7 @@
             </div>
           </div>
 
-          <div class="field-group" style="margin-bottom:0;">
+          <div class="field-group">
             <span class="field-label">Transparencia del fondo</span>
             <div class="bg-range-row">
               <input type="range" id="bgOpacityRange" min="0" max="100" value="100">
@@ -138,7 +158,7 @@
           <div class="text-card">
             <span class="field-label">Título</span>
             <select id="textTitleFont">
-              <option value="sans">Inter</option>
+              <option value="sans">Sistema (SF Pro)</option>
               <option value="mono">IBM Plex Mono</option>
               <option value="serif">Fraunces (serif)</option>
             </select>
@@ -149,14 +169,14 @@
             </select>
             <div class="bg-range-row">
               <input type="color" id="textTitleColor" value="#000000">
-              <button class="ghost" id="textTitleReset" style="padding:6px 10px;">Automático</button>
+              <button class="ghost" id="textTitleReset">Automático</button>
             </div>
           </div>
 
           <div class="text-card">
             <span class="field-label">Días</span>
             <select id="textDaysFont">
-              <option value="sans">Inter</option>
+              <option value="sans">Sistema (SF Pro)</option>
               <option value="mono">IBM Plex Mono</option>
               <option value="serif">Fraunces (serif)</option>
             </select>
@@ -167,14 +187,14 @@
             </select>
             <div class="bg-range-row">
               <input type="color" id="textDaysColor" value="#000000">
-              <button class="ghost" id="textDaysReset" style="padding:6px 10px;">Automático</button>
+              <button class="ghost" id="textDaysReset">Automático</button>
             </div>
           </div>
 
           <div class="text-card">
             <span class="field-label">Horas</span>
             <select id="textHoursFont">
-              <option value="sans">Inter</option>
+              <option value="sans">Sistema (SF Pro)</option>
               <option value="mono">IBM Plex Mono</option>
               <option value="serif">Fraunces (serif)</option>
             </select>
@@ -185,14 +205,14 @@
             </select>
             <div class="bg-range-row">
               <input type="color" id="textHoursColor" value="#000000">
-              <button class="ghost" id="textHoursReset" style="padding:6px 10px;">Automático</button>
+              <button class="ghost" id="textHoursReset">Automático</button>
             </div>
           </div>
 
           <div class="text-card">
             <span class="field-label">Leyenda</span>
             <select id="textLegendFont">
-              <option value="sans">Inter</option>
+              <option value="sans">Sistema (SF Pro)</option>
               <option value="mono">IBM Plex Mono</option>
               <option value="serif">Fraunces (serif)</option>
             </select>
@@ -203,7 +223,7 @@
             </select>
             <div class="bg-range-row">
               <input type="color" id="textLegendColor" value="#000000">
-              <button class="ghost" id="textLegendReset" style="padding:6px 10px;">Automático</button>
+              <button class="ghost" id="textLegendReset">Automático</button>
             </div>
           </div>
 
@@ -211,7 +231,7 @@
             <span class="field-label">Bloques de materias</span>
             <p class="hint" style="margin:0;">Tipografía y tamaño del texto dentro de los bloques. El color lo controla cada materia en la leyenda.</p>
             <select id="textBlocksFont">
-              <option value="sans">Inter</option>
+              <option value="sans">Sistema (SF Pro)</option>
               <option value="mono">IBM Plex Mono</option>
               <option value="serif">Fraunces (serif)</option>
             </select>
@@ -241,9 +261,9 @@
       </div>
     </div>
 
-    <div class="actions" style="margin-top:18px; margin-bottom:0;">
-      <button class="ghost" id="openShareSchedule">🔗 Compartir horario</button>
-      <button class="ghost" id="downloadBtn">↓ Descargar horario (imagen)</button>
+    <div class="actions results-actions">
+      <button class="ghost" id="openShareSchedule" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Compartir horario</button>
+      <button class="primary" id="downloadBtn" type="button"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="btn-text">Descargar imagen</span></button>
     </div>
   </div>
 
@@ -257,26 +277,26 @@
         <h3>Sugerencias y reportes</h3>
         <p>¿Tienes una idea, una mejora o encontraste un error? Envíanos un mensaje rápido y lo revisamos.</p>
         <div class="actions" style="margin-top:12px; margin-bottom:0;">
-          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Sugerencia%20Mi%20Horario&body=Hola%20José,%0A%0AQuería%20compartirte%20una%20sugerencia%20sobre%20Mi%20Horario:%0A" target="_blank" rel="noopener">💡 Enviar sugerencia</a>
-          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Bug%20Mi%20Horario&body=Hola%20José,%0A%0AEncontré%20este%20problema%20en%20Mi%20Horario:%0A" target="_blank" rel="noopener">🐞 Reportar bug</a>
+          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Sugerencia%20Mi%20Horario&body=Hola%20José,%0A%0AQuería%20compartirte%20una%20sugerencia%20sobre%20Mi%20Horario:%0A" target="_blank" rel="noopener">Enviar sugerencia</a>
+          <a class="ghost feedback-link" href="mailto:jomejiaar@unal.edu.co?subject=Bug%20Mi%20Horario&body=Hola%20José,%0A%0AEncontré%20este%20problema%20en%20Mi%20Horario:%0A" target="_blank" rel="noopener">Reportar un error</a>
         </div>
       </article>
     </div>
   </section>
 
   <footer class="site-footer">
-    <span class="credit">Hecho por <strong style="color:var(--ink); font-weight:600;">José Luciano Mejía Arias</strong> · v1.0.6</span>
+    <span class="credit">Hecho por <strong>José Luciano Mejía Arias</strong> · v1.1.0</span>
     <div class="socials">
       <a href="https://instagram.com/lucianomejia17" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
         Instagram
       </a>
       <a href="https://github.com/LucianoMejia" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.5 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.22-3.37-1.22-.46-1.2-1.11-1.53-1.11-1.53-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.56 2.36 1.11 2.93.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .28.18.6.69.5A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.5 0-.24-.01-1.05-.01-1.9-2.78.62-3.37-1.22-3.37-1.22-.46-1.2-1.11-1.53-1.11-1.53-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.56 2.36 1.11 2.93.85.09-.67.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.72 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.46.1 2.72.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .28.18.6.69.5A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/></svg>
         GitHub
       </a>
       <a href="https://www.linkedin.com/in/jos%C3%A9-luciano-mej%C3%ADa-arias-a35806383/" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.94 8.5H3.56V20.5H6.94V8.5Z"/><path d="M5.25 3.5A1.94 1.94 0 1 0 5.25 7.38 1.94 1.94 0 0 0 5.25 3.5Z"/><path d="M20.5 20.5H17.13v-6.3c0-1.5-.03-3.44-2.1-3.44-2.1 0-2.42 1.64-2.42 3.33v6.41H9.23V8.5h3.24v1.64h.05c.45-.85 1.55-1.75 3.2-1.75 3.42 0 4.06 2.25 4.06 5.18v6.93Z"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M6.94 8.5H3.56V20.5H6.94V8.5Z"/><path d="M5.25 3.5A1.94 1.94 0 1 0 5.25 7.38 1.94 1.94 0 0 0 5.25 3.5Z"/><path d="M20.5 20.5H17.13v-6.3c0-1.5-.03-3.44-2.1-3.44-2.1 0-2.42 1.64-2.42 3.33v6.41H9.23V8.5h3.24v1.64h.05c.45-.85 1.55-1.75 3.2-1.75 3.42 0 4.06 2.25 4.06 5.18v6.93Z"/></svg>
         LinkedIn
       </a>
     </div>
@@ -284,56 +304,51 @@
 </div>
 
 <div class="overlay" id="overlay"></div>
-<div class="drawer" id="drawer">
-  <button class="drawer-close" id="closeDrawer">×</button>
-  <h3>Accesibilidad</h3>
-  <p class="hint">Ajustes de accesibilidad y apariencia de la página. Se aplican a toda la página y se guardan automáticamente.</p>
-
-  <p class="field-label" style="font-size:12px; margin-bottom:14px; opacity:.7;">— Apariencia —</p>
-
-  <div class="field-group">
-    <span class="field-label">Color de acento</span>
-    <div class="swatches" id="swatches"></div>
-    <p class="hint" style="margin:10px 0 0;">Se aplica a toda la página: botones, enlaces, selección y acentos.</p>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true">
+  <div class="drawer-grabber" aria-hidden="true"></div>
+  <div class="drawer-head">
+    <h3 id="drawerTitle">Accesibilidad</h3>
+    <button class="drawer-close" id="closeDrawer" type="button" aria-label="Cerrar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
   </div>
+  <p class="hint">Se aplican a toda la página y se guardan automáticamente.</p>
 
-  <div class="field-group">
-    <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Tema claro / oscuro</span>
+  <p class="group-title">Apariencia</p>
+  <div class="group">
+    <div class="group-row stack">
+      <span class="row-label">Color de acento</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="group-row">
+      <span class="row-label">Modo oscuro</span>
       <label class="switch">
-        <input type="checkbox" id="darkToggle">
+        <input type="checkbox" id="darkToggle" aria-label="Modo oscuro">
         <span class="slider"></span>
       </label>
     </div>
   </div>
 
-  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Lectura y comodidad —</p>
-
-  <div class="field-group">
-    <span class="field-label">Tamaño de letra</span>
-    <select id="fontScaleSelect">
-      <option value="0.9">Pequeña</option>
-      <option value="1">Normal</option>
-      <option value="1.12">Grande</option>
-      <option value="1.25">Muy grande</option>
-    </select>
-  </div>
-
-  <div class="field-group">
-    <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Alto contraste</span>
+  <p class="group-title">Lectura y comodidad</p>
+  <div class="group">
+    <div class="group-row">
+      <span class="row-label">Tamaño de letra</span>
+      <select id="fontScaleSelect" class="compact" aria-label="Tamaño de letra">
+        <option value="0.9">Pequeña</option>
+        <option value="1">Normal</option>
+        <option value="1.12">Grande</option>
+        <option value="1.25">Muy grande</option>
+      </select>
+    </div>
+    <div class="group-row">
+      <span class="row-label">Alto contraste</span>
       <label class="switch">
-        <input type="checkbox" id="contrastToggle">
+        <input type="checkbox" id="contrastToggle" aria-label="Alto contraste">
         <span class="slider"></span>
       </label>
     </div>
-  </div>
-
-  <div class="field-group">
-    <div class="toggle-row">
-      <span class="field-label" style="margin-bottom:0;">Reducir movimiento</span>
+    <div class="group-row">
+      <span class="row-label">Reducir movimiento</span>
       <label class="switch">
-        <input type="checkbox" id="motionToggle">
+        <input type="checkbox" id="motionToggle" aria-label="Reducir movimiento">
         <span class="slider"></span>
       </label>
     </div>
@@ -341,82 +356,61 @@
 </div>
 
 <div class="overlay" id="helpOverlay"></div>
-<div class="drawer" id="helpDrawer">
-  <button class="drawer-close" id="closeHelpDrawer">×</button>
-  <h3>Cómo usar Mi Horario</h3>
-
-  <p class="field-label" style="font-size:12px; margin-bottom:14px; opacity:.7;">— Primeros pasos —</p>
-
-  <div class="field-group">
-    <h4 class="help-section-title">1. Agrega tus materias</h4>
-    <p class="help-text">Completa el nombre, grupo, día y horario de cada clase. Si una materia tiene varios grupos o se reúne otros días, agrega más filas con el mismo nombre de materia y grupo.</p>
+<div class="drawer" id="helpDrawer" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-hidden="true">
+  <div class="drawer-grabber" aria-hidden="true"></div>
+  <div class="drawer-head">
+    <h3 id="helpTitle">Cómo usar Mi Horario</h3>
+    <button class="drawer-close" id="closeHelpDrawer" type="button" aria-label="Cerrar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
   </div>
 
-  <div class="field-group">
-    <h4 class="help-section-title">2. Elige tu combinación</h4>
-    <p class="help-text">El planificador arma automáticamente todas las combinaciones posibles sin cruces de horario. Usa las flechas o el selector para revisar cada opción.</p>
+  <p class="group-title">Primeros pasos</p>
+  <ol class="steps">
+    <li><h4 class="help-section-title">Agrega tus materias</h4><p class="help-text">Completa el nombre, grupo, día y horario de cada clase. Si una materia tiene varios grupos o se reúne otros días, agrega más filas con el mismo nombre de materia y grupo.</p></li>
+    <li><h4 class="help-section-title">Elige tu combinación</h4><p class="help-text">El planificador arma todas las combinaciones posibles sin cruces de horario. Usa las flechas o el selector para revisar cada opción.</p></li>
+    <li><h4 class="help-section-title">Personaliza a tu gusto</h4><p class="help-text">En «Estilo del horario» ajusta horas, formato, fines de semana, fondo y colores. En «Accesibilidad» cambia el tema, el tamaño de letra y más.</p></li>
+    <li><h4 class="help-section-title">Comparte o descarga</h4><p class="help-text">Comparte tu horario por enlace o descárgalo como imagen. Usa varias pestañas para probar distintas versiones del semestre.</p></li>
+  </ol>
+
+  <p class="group-title">Combinatorio</p>
+  <div class="group text">
+    <h4 class="help-section-title">¿Cómo funciona?</h4>
+    <p class="help-text">Con varias materias, cada una con uno o más grupos, el sistema calcula todas las combinaciones de secciones (una por materia) que no se crucen. Por ejemplo, 3 materias con 2 grupos cada una dan hasta 2 × 2 × 2 = 8 combinaciones.</p>
   </div>
-
-  <div class="field-group">
-    <h4 class="help-section-title">3. Personaliza a tu gusto</h4>
-    <p class="help-text">En "Estilo del horario" ajusta horas, formato, sábado, fondo y colores. En "⚙ Accesibilidad" cambia el tema, el tamaño de letra y más.</p>
-  </div>
-
-  <div class="field-group">
-    <h4 class="help-section-title">4. Comparte o descarga</h4>
-    <p class="help-text">Comparte tu horario por enlace o descárgalo como imagen. Usa varias pestañas para probar distintas versiones del semestre.</p>
-  </div>
-
-  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Combinatorio —</p>
-
-  <div class="field-group">
-    <h4 class="help-section-title">¿Cómo funciona el combinatorio?</h4>
-    <p class="help-text">Cuando agregas varias materias, cada una con uno o más grupos, el sistema calcula todas las combinaciones posibles de secciones (una por materia) que no se crucen de horario. Por ejemplo, si tienes 3 materias y cada una tiene 2 grupos, hay hasta 2×2×2 = 8 combinaciones posibles.</p>
-  </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Grupos y secciones</h4>
-    <p class="help-text">Cada fila es una "sección" de una materia. Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por cada día con el mismo nombre de materia y de grupo. El sistema las agrupa automáticamente.</p>
+    <p class="help-text">Cada fila es una sección de una materia. Si un grupo se reúne varios días (ej. martes y jueves), agrega una fila por día con el mismo nombre de materia y de grupo. El sistema las agrupa solo.</p>
+  </div>
+  <div class="group text">
+    <h4 class="help-section-title">Interruptor de materia</h4>
+    <p class="help-text">El interruptor a la izquierda de cada fila oculta temporalmente esa materia para ver cómo queda el horario sin ella, sin borrarla.</p>
   </div>
 
-  <div class="field-group">
-    <h4 class="help-section-title">Usa el interruptor de materia</h4>
-    <p class="help-text">El interruptor de la izquierda de cada fila te permite ocultar temporalmente una materia y ver cómo queda el horario sin ella, sin necesidad de borrarla. Útil para comparar opciones rápidamente.</p>
+  <p class="group-title">Trucos y consejos</p>
+  <div class="group text">
+    <h4 class="help-section-title">Varias pestañas</h4>
+    <p class="help-text">Cada pestaña es un horario independiente. Úsalas para comparar versiones del semestre, por ejemplo una con clases en la mañana y otra en la tarde. Doble clic en una pestaña para renombrarla.</p>
   </div>
-
-  <p class="field-label" style="font-size:12px; margin:26px 0 14px; opacity:.7;">— Trucos y consejos —</p>
-
-  <div class="field-group">
-    <h4 class="help-section-title">Múltiples pestañas</h4>
-    <p class="help-text">Cada pestaña es un horario independiente. Crea varias pestañas para comparar distintas versiones del semestre (ej. una con clases de mañana y otra con clases de tarde).</p>
-  </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Colores por materia</h4>
-    <p class="help-text">Haz clic en el punto de color junto a cada materia en la leyenda (debajo del horario) para asignarle un color propio. Así distingues cada clase de un vistazo.</p>
+    <p class="help-text">Toca el punto de color junto a cada materia en la leyenda (debajo del horario) para asignarle su propio color.</p>
   </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Título del horario</h4>
-    <p class="help-text">Escribe un título en la casilla superior del resultado (ej. "Semestre 2026-1") para que aparezca en la imagen descargada.</p>
+    <p class="help-text">Escribe un título arriba del resultado (ej. «Semestre 2026‑1») y aparecerá en la imagen descargada.</p>
   </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Fondo personalizado</h4>
-    <p class="help-text">Sube una imagen de fondo en "Estilo del horario" y ajusta la opacidad, el estilo de ajuste y el oscurecimiento para que el horario sea legible sobre la imagen.</p>
+    <p class="help-text">Sube una imagen en «Estilo del horario» y ajusta la transparencia, el ajuste y el oscurecimiento para que el horario se lea bien encima.</p>
   </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Compartir por enlace</h4>
-    <p class="help-text">Usa "🔗 Compartir horario" para generar un enlace que contiene todos tus datos. Copia y pega el enlace para compartir tu horario con amigos.</p>
+    <p class="help-text">«Compartir horario» genera un enlace que contiene tus datos. Quien lo abra verá una pestaña nueva con tu horario.</p>
   </div>
-
-  <div class="field-group">
+  <div class="group text">
     <h4 class="help-section-title">Guardar tu horario</h4>
-    <p class="help-text">Los datos se guardan automáticamente en tu navegador. Si estás en modo privado o abriendo el archivo localmente, los datos se perderán al recargar. En ese caso, descarga la imagen o comparte por enlace.</p>
+    <p class="help-text">Todo se guarda automáticamente en tu navegador. En modo privado o con el archivo abierto localmente se pierde al recargar; en ese caso descarga la imagen o comparte por enlace.</p>
   </div>
 </div>
-
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="script.js" defer></script>

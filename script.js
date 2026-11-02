@@ -1,14 +1,9 @@
 const DAYS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const COLORS = [
-  {bg:"#E7EAF5", border:"#3B4B8C", text:"#2B3266", dbg:"#262B45", dtext:"#C7CDEE"},
-  {bg:"#E3F1EA", border:"#2E7D5B", text:"#1E5A40", dbg:"#1C3229", dtext:"#B7E4CC"},
-  {bg:"#F5E4DC", border:"#C6512E", text:"#8C3A20", dbg:"#3A2620", dtext:"#F2C3AC"},
-  {bg:"#F5E9F0", border:"#A34D74", text:"#7A3A56", dbg:"#33222C", dtext:"#EEBBD1"},
-  {bg:"#FBF0DA", border:"#B37B1E", text:"#7A5514", dbg:"#362D18", dtext:"#F0D298"},
-  {bg:"#EDEAF7", border:"#6A4FA0", text:"#4C3877", dbg:"#2A2438", dtext:"#D6C7F0"},
-  {bg:"#E4EFF2", border:"#2E7C8C", text:"#1F5866", dbg:"#1D2F33", dtext:"#AEDDE6"}
-];
-const ACCENTS = ["#3B4B8C","#2E7D5B","#C6512E","#A34D74","#B37B1E","#6A4FA0","#2E7C8C"];
+// Colores del sistema de Apple (Calendario/Recordatorios). El fondo, el texto y
+// las variantes oscuras se derivan del mismo tono con buildColorFromHex().
+const COLORS = ["#007AFF","#34C759","#FF9500","#FF2D55","#AF52DE","#30B0C7","#FF3B30","#5856D6","#A2845E"].map(h => buildColorFromHex(h));
+// Variantes accesibles de los colores del sistema (contraste suficiente con texto blanco).
+const ACCENTS = ["#0071E3","#248A3D","#5E5CE6","#C93400","#D30F45","#8944AB","#0071A4"];
 const STORAGE_KEY = "horario_planner_state_v1";
 
 function showFatalError(msg){
@@ -24,14 +19,76 @@ window.addEventListener('unhandledrejection', (e)=>{
   showFatalError('Ocurrió un error: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
 });
 
+// Escapa texto del usuario antes de meterlo en innerHTML. Importante porque
+// los horarios pueden llegar desde un enlace compartido por otra persona.
+function escapeHtml(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* Avisos apilados al estilo Sonner: entran y salen por el mismo lado,
+   con transiciones interrumpibles y máximo tres visibles. */
+let toasts = [];
 function showToast(msg){
-  const old = document.querySelector('.toast');
-  if(old) old.remove();
-  const t = document.createElement('div');
+  let host = document.querySelector('.toaster');
+  if(!host){
+    host = document.createElement('ol');
+    host.className = 'toaster';
+    host.setAttribute('aria-live', 'polite');
+    document.body.appendChild(host);
+  }
+  const t = document.createElement('li');
   t.className = 'toast';
+  t.setAttribute('role', 'status');
   t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(()=> t.remove(), 3200);
+  t.style.setProperty('--i', 0);
+  host.appendChild(t);
+  toasts.unshift(t);
+  layoutToasts();
+  setTimeout(()=> dismissToast(t), 3200);
+}
+function layoutToasts(){
+  toasts.forEach((el, i)=>{
+    el.style.setProperty('--i', i);
+    el.toggleAttribute('data-hidden', i >= 3);
+  });
+}
+function dismissToast(t){
+  if(!toasts.includes(t)) return;
+  toasts = toasts.filter(x => x !== t);
+  t.setAttribute('data-leaving', '');
+  layoutToasts();
+  setTimeout(()=> t.remove(), 420);
+}
+
+/* Diálogos: aparecen con scale(0.96) desde el centro, se cierran con Esc
+   o tocando fuera, y devuelven el foco a donde estaba. */
+const modalStack = [];
+function presentModal(overlay, close){
+  overlay._close = close;
+  overlay._returnFocus = document.activeElement;
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  document.body.appendChild(overlay);
+  modalStack.push(overlay);
+  requestAnimationFrame(()=>{
+    overlay.classList.add('open');
+    const target = overlay.querySelector('input, textarea, [data-act="ok"], [data-act="copy"], [data-act="link"], button');
+    if(target && !overlay.querySelector('#modalInput')) target.focus({ preventScroll:true });
+  });
+}
+function dismissModal(overlay){
+  if(overlay._closing) return;
+  overlay._closing = true;
+  const i = modalStack.indexOf(overlay);
+  if(i >= 0) modalStack.splice(i, 1);
+  overlay.classList.remove('open');
+  const done = ()=> overlay.remove();
+  overlay.addEventListener('transitionend', (e)=>{ if(e.target === overlay) done(); });
+  setTimeout(done, 320);
+  const rf = overlay._returnFocus;
+  if(rf && rf.focus && document.contains(rf)) rf.focus({ preventScroll:true });
 }
 
 function showConfirmModal({title, message, confirmText, danger, onConfirm}){
@@ -39,15 +96,15 @@ function showConfirmModal({title, message, confirmText, danger, onConfirm}){
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box">
-      <h4>${title}</h4>
-      <p>${message}</p>
+      <h4>${escapeHtml(title)}</h4>
+      <p>${escapeHtml(message)}</p>
       <div class="modal-actions">
         <button class="ghost" data-act="cancel">Cancelar</button>
-        <button class="primary" data-act="ok" style="${danger?'background:#C6512E;':''}">${confirmText}</button>
+        <button class="primary" data-act="ok" style="${danger?'background:var(--danger);':''}">${confirmText}</button>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
-  function close(){ overlay.remove(); }
+  function close(){ dismissModal(overlay); }
+  presentModal(overlay, close);
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
   overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
   overlay.querySelector('[data-act="ok"]').addEventListener('click', ()=>{ close(); onConfirm(); });
@@ -66,10 +123,10 @@ function showPromptModal({title, message, initialValue, confirmText, onConfirm})
         <button class="primary" data-act="ok">${confirmText}</button>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
+  function close(){ dismissModal(overlay); }
+  presentModal(overlay, close);
   const input = overlay.querySelector('#modalInput');
   setTimeout(()=>{ input.focus(); input.select(); }, 30);
-  function close(){ overlay.remove(); }
   function confirmIt(){
     const val = input.value.trim();
     close();
@@ -157,7 +214,9 @@ function copyTextToClipboard(text){
   let copied = false;
   try{
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text);
+      // Si el navegador niega el permiso, caemos a execCommand en vez de
+      // dejar una promesa rechazada que muestra el banner de error.
+      navigator.clipboard.writeText(text).catch(()=>{ try{ document.execCommand('copy'); }catch(e){} });
       copied = true;
     }
   }catch(e){}
@@ -177,7 +236,7 @@ function showWebShareModal(){
       <h4>Compartir la web</h4>
       <p>Comparte la página de Mi Horario para que otros la prueben y la descubran.</p>
       <label style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:6px;">Enlace</label>
-      <textarea id="webShareLink" readonly style="width:100%; height:70px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${shareUrl}</textarea>
+      <textarea id="webShareLink" readonly style="width:100%; height:70px; font-family:var(--font-mono); font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${escapeHtml(shareUrl)}</textarea>
       <div class="modal-actions" style="justify-content:center; flex-wrap:wrap; gap:10px;">
         <div class="share-social">
           <button class="ghost" data-act="wa" title="WhatsApp" aria-label="Compartir por WhatsApp">
@@ -197,13 +256,13 @@ function showWebShareModal(){
           </button>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-          <button class="ghost" data-act="copy">📋 Copiar</button>
+          <button class="ghost" data-act="copy">Copiar</button>
           <button class="ghost" data-act="close">Cerrar</button>
         </div>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
-  function close(){ overlay.remove(); }
+  function close(){ dismissModal(overlay); }
+  presentModal(overlay, close);
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
   overlay.querySelector('[data-act="close"]').addEventListener('click', close);
   overlay.querySelector('[data-act="copy"]').addEventListener('click', ()=>{
@@ -253,19 +312,19 @@ function showShareModal(){
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box" style="max-width:440px;">
-      <h4>Compartir "${proj.name}"</h4>
+      <h4>Compartir «${escapeHtml(proj.name)}»</h4>
       <p>Copia este enlace y envíaselo. Quien lo abra verá una pestaña nueva con este mismo horario.</p>
       <label style="display:block; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:6px;">Enlace compartible</label>
-      <textarea id="shareLink" readonly style="width:100%; height:70px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${shareUrl}</textarea>
+      <textarea id="shareLink" readonly style="width:100%; height:70px; font-family:var(--font-mono); font-size:11px; padding:8px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); resize:vertical; margin-bottom:14px; box-sizing:border-box;">${escapeHtml(shareUrl)}</textarea>
       <div class="modal-actions" style="justify-content:flex-end; flex-wrap:wrap;">
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="ghost" data-act="link">🔗 Copiar enlace</button>
+          <button class="ghost" data-act="link">Copiar enlace</button>
           <button class="ghost" data-act="close">Cerrar</button>
         </div>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
-  function close(){ overlay.remove(); }
+  function close(){ dismissModal(overlay); }
+  presentModal(overlay, close);
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) close(); });
   overlay.querySelector('[data-act="close"]').addEventListener('click', close);
   overlay.querySelector('[data-act="link"]').addEventListener('click', ()=>{
@@ -338,9 +397,9 @@ let currentIdx = 0;
 
 function defaultTextStyles(){
   return {
-    title:  { font:'serif', size:1, color:'' },
-    days:   { font:'mono',  size:1, color:'' },
-    hours:  { font:'mono',  size:1, color:'' },
+    title:  { font:'sans',  size:1, color:'' },
+    days:   { font:'sans',  size:1, color:'' },
+    hours:  { font:'sans',  size:1, color:'' },
     legend: { font:'sans',  size:1, color:'' },
     blocks: { font:'sans',  size:1 }
   };
@@ -352,7 +411,7 @@ function defaultState(){
   return {
     projects: [{ id: "p"+Date.now(), name:"Horario 1", rows: [emptyRow(), emptyRow()], colorOverrides:{}, selectedOption: 0, settings: defaultProjSettings() }],
     activeId: null,
-    settings: { accent: ACCENTS[0], dark:false, materiasCollapsed:false, styleCollapsed:false, fontScale:1, highContrast:false, reduceMotion:false }
+    settings: { accent: ACCENTS[0], dark: !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches), materiasCollapsed:false, styleCollapsed:false, fontScale:1, highContrast:false, reduceMotion:false }
   };
 }
 function emptyRow(){ return { course:"", day:"Lun", start:"08:00", end:"10:00", room:"", group:"", professor:"", enabled:true }; }
@@ -433,7 +492,12 @@ function renderTabs(){
   state.projects.forEach(p=>{
     const tab = document.createElement('div');
     tab.className = 'tab' + (p.id===state.activeId ? ' active' : '');
-    tab.innerHTML = `<span class="tab-name">${p.name}</span>`;
+    tab.innerHTML = `<span class="tab-name">${escapeHtml(p.name)}</span>`;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(p.id===state.activeId));
+    tab.tabIndex = p.id===state.activeId ? 0 : -1;
+    tab.title = 'Doble clic para renombrar';
+    tab.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); tab.click(); } if(e.key==='F2') tab.dispatchEvent(new Event('dblclick')); });
     tab.addEventListener('click', (e)=>{
       if(e.target.classList.contains('tab-x')) return;
       state.activeId = p.id;
@@ -458,6 +522,8 @@ function renderTabs(){
     const xBtn = document.createElement('button');
     xBtn.className = 'tab-x';
     xBtn.textContent = '×';
+    xBtn.type = 'button';
+    xBtn.setAttribute('aria-label', 'Eliminar ' + p.name);
     xBtn.title = 'Eliminar este horario';
     xBtn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
@@ -483,6 +549,8 @@ function renderTabs(){
   const addBtn = document.createElement('button');
   addBtn.className = 'add-tab';
   addBtn.textContent = '+';
+  addBtn.type = 'button';
+  addBtn.setAttribute('aria-label', 'Crear nuevo horario');
   addBtn.title = 'Crear nuevo horario';
   addBtn.addEventListener('click', ()=>{
     const n = state.projects.length + 1;
@@ -506,16 +574,16 @@ function rowTemplate(data){
         <input type="checkbox" data-field="enabled" ${data.enabled === false ? '' : 'checked'}>
         <span class="slider"></span>
       </label>
-      <input type="text" placeholder="Nombre de la materia (ej. Cálculo II)" data-field="course" value="${data.course||''}">
-      <button class="remove-btn" title="Eliminar fila">×</button>
+      <input type="text" placeholder="Nombre de la materia (ej. Cálculo II)" data-field="course" value="${escapeHtml(data.course||'')}">
+      <button class="remove-btn" type="button" title="Eliminar fila" aria-label="Eliminar fila">×</button>
     </div>
     <div class="row-fields">
-      <div class="field"><label>Grupo</label><input type="text" placeholder="1" data-field="group" value="${data.group||''}"></div>
-      <div class="field"><label>Día</label><select data-field="day">${dayOptions.map(d=>`<option value="${d}" ${d===data.day?'selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="field"><label>Inicio</label><input type="time" data-field="start" value="${data.start||'08:00'}"></div>
-      <div class="field"><label>Fin</label><input type="time" data-field="end" value="${data.end||'10:00'}"></div>
-      <div class="field"><label>Aula</label><input type="text" placeholder="B-204" data-field="room" value="${data.room||''}"></div>
-      <div class="field"><label>Profesor(a)</label><input type="text" placeholder="Nombre" data-field="professor" value="${data.professor||''}"></div>
+      <div class="field"><label>Grupo</label><input type="text" placeholder="1" data-field="group" value="${escapeHtml(data.group||'')}"></div>
+      <div class="field"><label>Día</label><select data-field="day">${dayOptions.map(d=>`<option value="${escapeHtml(d)}" ${d===data.day?'selected':''}>${escapeHtml(d)}</option>`).join('')}</select></div>
+      <div class="field"><label>Inicio</label><input type="time" data-field="start" value="${escapeHtml(data.start||'08:00')}"></div>
+      <div class="field"><label>Fin</label><input type="time" data-field="end" value="${escapeHtml(data.end||'10:00')}"></div>
+      <div class="field"><label>Aula</label><input type="text" placeholder="B-204" data-field="room" value="${escapeHtml(data.room||'')}"></div>
+      <div class="field"><label>Profesor(a)</label><input type="text" placeholder="Nombre" data-field="professor" value="${escapeHtml(data.professor||'')}"></div>
     </div>
   `;
   card.querySelectorAll('input, select').forEach(el=>{
@@ -735,7 +803,8 @@ function generate(){
 
     const prevBtn = document.createElement('button');
     prevBtn.className = 'nav-btn prev';
-    prevBtn.textContent = '← Anterior';
+    prevBtn.textContent = '‹ Anterior';
+    prevBtn.type = 'button';
     prevBtn.addEventListener('click', ()=>{
       if(currentIdx>0){
         currentIdx -= 1;
@@ -756,7 +825,8 @@ function generate(){
 
     const nextBtn = document.createElement('button');
     nextBtn.className = 'nav-btn next';
-    nextBtn.textContent = 'Siguiente →';
+    nextBtn.textContent = 'Siguiente ›';
+    nextBtn.type = 'button';
     nextBtn.addEventListener('click', ()=>{ if(currentIdx < schedules.length-1){ currentIdx += 1; render(); try{ const p = getActiveProject(); p.selectedOption = currentIdx; saveState(); }catch(e){} }});
 
     const label = document.createElement('span');
@@ -892,13 +962,13 @@ function renderGrid(schedule, colorMap){
       const c = colorMap[sec.course];
       const bg = dark ? c.dbg : c.bg;
       const text = dark ? c.dtext : c.text;
-      blocksHtml += `<div class="block" data-bottom="${capBottom}" data-span="${span}" style="top:${top}px; left:${left}px; width:${width}px; height:${timeBasedHeight}px; background:${bg}; border-left-color:${c.border}; color:${text};">
-        <div class="b-course">${sec.course}</div>
+      blocksHtml += `<div class="block" data-bottom="${capBottom}" data-span="${span}" style="top:${top}px; left:${left}px; width:${width}px; height:${timeBasedHeight}px; background:${escapeHtml(bg)}; border-left-color:${escapeHtml(c.border)}; color:${escapeHtml(text)};">
+        <div class="b-course">${escapeHtml(sec.course)}</div>
         <div class="b-info">
-          ${grpLine ? `<div class="b-grp">${grpLine}</div>` : ''}
+          ${grpLine ? `<div class="b-grp">${escapeHtml(grpLine)}</div>` : ''}
           <div class="b-time">${formatTimeStr(sec.start)} - ${formatTimeStr(sec.end)}</div>
-          ${sec.room ? `<div class="b-room">Aula ${sec.room}</div>` : ''}
-          ${sec.professor ? `<div class="b-prof">${sec.professor}</div>` : ''}
+          ${sec.room ? `<div class="b-room">Aula ${escapeHtml(sec.room)}</div>` : ''}
+          ${sec.professor ? `<div class="b-prof">${escapeHtml(sec.professor)}</div>` : ''}
         </div>
       </div>`;
     });
@@ -965,16 +1035,20 @@ function bgStyleValues(mode){
 }
 
 function applySettings(){
+  if(!ACCENTS.includes(state.settings.accent)) state.settings.accent = ACCENTS[0];
   document.documentElement.style.setProperty('--accent', state.settings.accent);
   document.body.classList.toggle('dark', state.settings.dark);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', state.settings.dark ? '#000000' : '#F5F5F7'));
   document.getElementById('darkToggle').checked = state.settings.dark;
 
   const scale = (typeof state.settings.fontScale === 'number') ? state.settings.fontScale : 1;
   document.body.style.zoom = scale;
   const drawer = document.getElementById('drawer');
   const overlay = document.getElementById('overlay');
-  if(drawer) drawer.style.zoom = 1 / scale;
-  if(overlay) overlay.style.zoom = 1 / scale;
+  ['drawer','overlay','helpDrawer','helpOverlay'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.zoom = 1 / scale;
+  });
   document.getElementById('fontScaleSelect').value = String(scale);
   document.body.classList.toggle('high-contrast', !!state.settings.highContrast);
   document.getElementById('contrastToggle').checked = !!state.settings.highContrast;
@@ -988,13 +1062,18 @@ function applySettings(){
   document.getElementById('collapseMateriasBtn').classList.toggle('collapsed', !!state.settings.materiasCollapsed);
   document.getElementById('styleBody').classList.toggle('collapsed', !!state.settings.styleCollapsed);
   document.getElementById('collapseStyleBtn').classList.toggle('collapsed', !!state.settings.styleCollapsed);
+  document.getElementById('collapseMateriasBtn').setAttribute('aria-expanded', String(!state.settings.materiasCollapsed));
+  document.getElementById('collapseStyleBtn').setAttribute('aria-expanded', String(!state.settings.styleCollapsed));
+  document.getElementById('materiasBody').inert = !!state.settings.materiasCollapsed;
+  document.getElementById('styleBody').inert = !!state.settings.styleCollapsed;
+  syncAllRanges();
 
   const img = ps.bgImage || '';
   const gridWrap = document.querySelector('.grid-wrap');
   if(gridWrap){
     gridWrap.classList.toggle('has-bg', !!img);
     if(img){
-      const panel = (getComputedStyle(document.body).getPropertyValue('--panel') || (state.settings.dark ? '#1E212C' : '#ffffff')).trim();
+      const panel = (getComputedStyle(document.body).getPropertyValue('--panel') || (state.settings.dark ? '#1C1C1E' : '#ffffff')).trim();
       const opacity = (typeof ps.bgOpacity === 'number') ? ps.bgOpacity : 1;
       const v = bgStyleValues(ps.bgMode);
       gridWrap.style.setProperty('--bg-url', `url("${img}")`);
@@ -1007,7 +1086,7 @@ function applySettings(){
     } else {
       ['--bg-url','--bg-size','--bg-repeat','--bg-position','--bg-filter','--bg-dark-overlay','--bg-panel-overlay'].forEach(k=> gridWrap.style.removeProperty(k));
     }
-    const fontMap = { sans: "'Inter',sans-serif", mono: "'IBM Plex Mono',monospace", serif: "'Fraunces',serif" };
+    const fontMap = { sans: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif', mono: "'IBM Plex Mono', ui-monospace, monospace", serif: "'Fraunces', Georgia, serif" };
     // Letras por elemento: cada uno con su propia tipografía, tamaño y color.
     // Se aplican en #exportCapture (la tarjeta del horario que se descarga) para
     // que solo cambien el título, días, horas, leyenda y bloques del horario,
@@ -1099,7 +1178,10 @@ function buildDrawerControls(){
   const sw = document.getElementById('swatches');
   sw.innerHTML = '';
   ACCENTS.forEach(color=>{
-    const s = document.createElement('div');
+    const s = document.createElement('button');
+    s.type = 'button';
+    s.setAttribute('aria-label', 'Color de acento ' + (ACCENTS.indexOf(color) + 1));
+    s.setAttribute('aria-pressed', String(state.settings.accent===color));
     s.className = 'swatch' + (state.settings.accent===color ? ' selected' : '');
     s.style.background = color;
     s.addEventListener('click', ()=>{
@@ -1230,25 +1312,47 @@ document.getElementById('collapseMateriasBtn').addEventListener('click', ()=>{
 document.getElementById('openWebShare').addEventListener('click', showWebShareModal);
 document.getElementById('openShareSchedule').addEventListener('click', showShareModal);
 
-function closeDrawerFn(){
-  document.getElementById('drawer').classList.remove('open');
-  document.getElementById('overlay').classList.remove('open');
+let drawerReturnFocus = null;
+function openSheet(drawerId, overlayId){
+  drawerReturnFocus = document.activeElement;
+  const d = document.getElementById(drawerId);
+  d.classList.add('open');
+  d.setAttribute('aria-hidden', 'false');
+  document.getElementById(overlayId).classList.add('open');
+  requestAnimationFrame(()=> d.querySelector('.drawer-close').focus({ preventScroll:true }));
 }
-document.getElementById('openCustomize').addEventListener('click', ()=>{
-  document.getElementById('drawer').classList.add('open');
-  document.getElementById('overlay').classList.add('open');
-});
+function closeSheet(drawerId, overlayId){
+  const d = document.getElementById(drawerId);
+  if(!d.classList.contains('open')) return;
+  d.classList.remove('open');
+  d.setAttribute('aria-hidden', 'true');
+  document.getElementById(overlayId).classList.remove('open');
+  if(drawerReturnFocus && drawerReturnFocus.focus) drawerReturnFocus.focus({ preventScroll:true });
+}
+function closeDrawerFn(){ closeSheet('drawer', 'overlay'); }
+document.getElementById('openCustomize').addEventListener('click', ()=> openSheet('drawer', 'overlay'));
 document.getElementById('closeDrawer').addEventListener('click', closeDrawerFn);
 document.getElementById('overlay').addEventListener('click', closeDrawerFn);
 
-function closeHelpDrawerFn(){
-  document.getElementById('helpDrawer').classList.remove('open');
-  document.getElementById('helpOverlay').classList.remove('open');
-}
-document.getElementById('openHelp').addEventListener('click', ()=>{
-  document.getElementById('helpDrawer').classList.add('open');
-  document.getElementById('helpOverlay').classList.add('open');
+function closeHelpDrawerFn(){ closeSheet('helpDrawer', 'helpOverlay'); }
+document.getElementById('openHelp').addEventListener('click', ()=> openSheet('helpDrawer', 'helpOverlay'));
+
+// Esc cierra lo que esté encima: primero un diálogo, luego las hojas.
+document.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Escape') return;
+  const top = modalStack[modalStack.length - 1];
+  if(top && top._close){ top._close(); return; }
+  closeDrawerFn();
+  closeHelpDrawerFn();
 });
+
+// Deslizadores con relleno de color (como en iOS).
+function syncRange(el){
+  const min = parseFloat(el.min) || 0, max = parseFloat(el.max) || 100;
+  el.style.setProperty('--p', ((parseFloat(el.value) - min) / (max - min) * 100) + '%');
+}
+function syncAllRanges(){ document.querySelectorAll('input[type="range"]').forEach(syncRange); }
+document.addEventListener('input', (e)=>{ if(e.target.matches && e.target.matches('input[type="range"]')) syncRange(e.target); });
 document.getElementById('closeHelpDrawer').addEventListener('click', closeHelpDrawerFn);
 document.getElementById('helpOverlay').addEventListener('click', closeHelpDrawerFn);
 
@@ -1280,16 +1384,22 @@ document.getElementById('downloadBtn').addEventListener('click', ()=>{
     return;
   }
   const btn = document.getElementById('downloadBtn');
-  const original = btn.textContent;
-  btn.textContent = 'Generando imagen…';
+  if(btn.disabled) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.querySelector('.btn-text').textContent = 'Generando…';
   const projName = (getActiveProject().name || 'horario').replace(/\s+/g,'_').replace(/[^\w\-]/g,'');
-  html2canvas(target, {backgroundColor: state.settings.dark ? '#1E212C' : '#ffffff', scale:2}).then(canvas=>{
+  html2canvas(target, {backgroundColor: state.settings.dark ? '#1C1C1E' : '#ffffff', scale:2}).then(canvas=>{
     const link = document.createElement('a');
     link.download = `${projName}_opcion_${currentIdx+1}_de_${schedules.length}.png`;
     link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
     link.click();
-    btn.textContent = original;
-  }).catch(()=>{ btn.textContent = original; });
+    link.remove();
+    btn.innerHTML = original;
+    btn.disabled = false;
+    showToast('Imagen descargada');
+  }).catch(()=>{ btn.innerHTML = original; btn.disabled = false; showToast('No se pudo generar la imagen. Inténtalo de nuevo.'); });
 });
 
 /* ---------- Init ---------- */
